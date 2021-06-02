@@ -291,8 +291,6 @@ contract Strategy is BaseStrategy {
             "KashiPair asset does not match want"
         );
 
-        kashiPair.accrue();
-
         uint256 kashiFraction = kashiPair.balanceOf(address(this));
 
         if (kashiFraction > 0) {
@@ -323,12 +321,13 @@ contract Strategy is BaseStrategy {
     {
         uint256 totalAssetShare = kashiPair.totalAsset().elastic;
         uint256 allShare =
-            kashiPair.totalAsset().elastic +
+            uint256(kashiPair.totalAsset().elastic).add(
                 bentoBox.toShare(
                     BIERC20(address(want)),
                     kashiPair.totalBorrow().elastic,
                     !roundUp
-                );
+                )
+            );
         kashiFraction = allShare == 0
             ? bentoShares
             : bentoShares.mul(kashiPair.totalAsset().base).div(allShare);
@@ -340,12 +339,13 @@ contract Strategy is BaseStrategy {
         returns (uint256 bentoShares)
     {
         uint256 allShare =
-            kashiPair.totalAsset().elastic +
+            uint256(kashiPair.totalAsset().elastic).add(
                 bentoBox.toShare(
                     BIERC20(address(want)),
                     kashiPair.totalBorrow().elastic,
                     roundUp
-                );
+                )
+            );
         bentoShares = kashiFraction.mul(allShare).div(
             kashiPair.totalAsset().base
         );
