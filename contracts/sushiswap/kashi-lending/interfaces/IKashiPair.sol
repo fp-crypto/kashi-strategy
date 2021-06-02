@@ -94,7 +94,7 @@ interface IKashiPair {
 
     function approve(address spender, uint256 amount) external returns (bool);
 
-    function asset() external view returns (IERC20);
+    function asset() external view returns (BIERC20);
 
     function balanceOf(address) external view returns (uint256);
 
@@ -106,7 +106,7 @@ interface IKashiPair {
 
     function claimOwnership() external;
 
-    function collateral() external view returns (IERC20);
+    function collateral() external view returns (BIERC20);
 
     function cook(
         uint8[] calldata actions,
@@ -121,8 +121,8 @@ interface IKashiPair {
     function feeTo() external view returns (address);
 
     function getInitData(
-        IERC20 collateral_,
-        IERC20 asset_,
+        BIERC20 collateral_,
+        BIERC20 asset_,
         IOracle oracle_,
         bytes calldata oracleData_
     ) external pure returns (bytes memory data);

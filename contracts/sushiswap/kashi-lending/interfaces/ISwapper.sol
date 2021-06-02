@@ -9,8 +9,8 @@ interface ISwapper {
     /// Returns the amount of tokens 'to' transferred to BentoBox.
     /// (The BentoBox skim function will be used by the caller to get the swapped funds).
     function swap(
-        IERC20 fromToken,
-        IERC20 toToken,
+        BIERC20 fromToken,
+        BIERC20 toToken,
         address recipient,
         uint256 shareToMin,
         uint256 shareFrom
@@ -25,8 +25,8 @@ interface ISwapper {
     /// Returns the amount of 'from' tokens withdrawn from BentoBox (amountFrom).
     /// (The BentoBox skim function will be used by the caller to get the swapped funds).
     function swapExact(
-        IERC20 fromToken,
-        IERC20 toToken,
+        BIERC20 fromToken,
+        BIERC20 toToken,
         address recipient,
         address refundTo,
         uint256 shareFromSupplied,

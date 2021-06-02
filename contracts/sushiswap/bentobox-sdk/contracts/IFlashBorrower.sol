@@ -5,7 +5,7 @@ import "../../../boringcrypto/boring-solidity/interfaces/IERC20.sol";
 interface IFlashBorrower {
     function onFlashLoan(
         address sender,
-        IERC20 token,
+        BIERC20 token,
         uint256 amount,
         uint256 fee,
         bytes calldata data

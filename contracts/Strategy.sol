@@ -26,9 +26,7 @@ import {
     Rebase,
     RebaseLibrary
 } from "./boringcrypto/boring-solidity/libraries/BoringRebase.sol";
-import {
-    IERC20 as BIERC20
-} from "./boringcrypto/boring-solidity/interfaces/IERC20.sol";
+import {BIERC20} from "./boringcrypto/boring-solidity/interfaces/IERC20.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -285,7 +283,7 @@ contract Strategy is BaseStrategy {
 
     function setKashiPair(address _newKashiPair) external onlyGovernance {
         require(
-            IKashiPair(_newKashiPair).bentoBox() == bentoBox,
+            address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox),
             "BentoBox does not match"
         );
         require(
