@@ -102,6 +102,10 @@ contract Strategy is BaseStrategy {
     }
 
     function _initializeStrat(address _bentoBox, address _kashiPair) internal {
+        require(
+            address(kashiPair) == address(0),
+            "StategyKashiLending: already initialized"
+        );
         require(address(IKashiPair(_kashiPair).bentoBox()) == _bentoBox);
         require(address(IKashiPair(_kashiPair).asset()) == address(want));
 
@@ -208,8 +212,7 @@ contract Strategy is BaseStrategy {
                 sharesInBento
             );
 
-            uint256 fractions =
-                kashiPair.addAsset(address(this), true, sharesInBento);
+            kashiPair.addAsset(address(this), true, sharesInBento);
         }
     }
 
@@ -275,11 +278,12 @@ contract Strategy is BaseStrategy {
         return want.balanceOf(address(this));
     }
 
+    // The _newStrategy must support the same kashiPair or bad things will happen
     function prepareMigration(address _newStrategy) internal override {
-        liquidateAllPositions();
+        kashiPair.transfer(_newStrategy, kashiPair.balanceOf(address(this)));
     }
 
-    function setKashiPair(address _newKashiPair) external onlyAuthorized {
+    function setKashiPair(address _newKashiPair) external onlyGovernance {
         require(
             IKashiPair(_newKashiPair).bentoBox() == bentoBox,
             "BentoBox does not match"
@@ -289,9 +293,29 @@ contract Strategy is BaseStrategy {
             "KashiPair asset does not match want"
         );
 
-        liquidateAllPositions();
+        kashiPair.accrue();
+
+        uint256 kashiFraction = kashiPair.balanceOf(address(this));
+
+        if (kashiFraction > 0) {
+            kashiPair.removeAsset(address(this), kashiFraction);
+        }
 
         kashiPair = IKashiPair(_newKashiPair);
+
+        uint256 sharesInBento =
+            bentoBox.balanceOf(BIERC20(address(want)), address(this));
+
+        if (sharesInBento > 0) {
+            bentoBox.transfer(
+                BIERC20(address(want)),
+                address(this),
+                address(kashiPair),
+                sharesInBento
+            );
+
+            kashiPair.addAsset(address(this), true, sharesInBento);
+        }
     }
 
     function _toKashiFraction(uint256 bentoShares, bool roundUp)
