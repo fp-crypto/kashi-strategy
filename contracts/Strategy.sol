@@ -114,7 +114,10 @@ contract Strategy is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyKashiLender";
+        return
+            string(
+                abi.encodePacked("StrategyKashiLender(", kashiPair.name(), ")")
+            );
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
