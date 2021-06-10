@@ -121,15 +121,11 @@ contract Strategy is BaseStrategy {
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        uint256 sharesInBento =
-            bentoBox.balanceOf(BIERC20(address(want)), address(this));
-        uint256 kashiTokens = kashiPair.balanceOf(address(this));
-
         uint256 totalShares =
-            sharesInBento.add(_toBentoShares(kashiTokens, true));
+            sharesInBento().add(_toBentoShares(kashiFraction(), true));
 
         return
-            want.balanceOf(address(this)).add(
+            balanceOfWant().add(
                 bentoBox.toAmount(BIERC20(address(want)), totalShares, true)
             );
     }
@@ -149,7 +145,7 @@ contract Strategy is BaseStrategy {
         }
 
         uint256 assets = estimatedTotalAssets();
-        uint256 wantBal = want.balanceOf(address(this));
+        uint256 wantBal = balanceOfWant();
 
         uint256 debt = vault.strategies(address(this)).totalDebt;
 
@@ -162,7 +158,7 @@ contract Strategy is BaseStrategy {
             if (amountToFree > 0 && wantBal < amountToFree) {
                 liquidatePosition(amountToFree);
 
-                uint256 newLoose = want.balanceOf(address(this));
+                uint256 newLoose = balanceOfWant();
 
                 //if we dont have enough money adjust _debtOutstanding and only change profit if needed
                 if (newLoose < amountToFree) {
@@ -188,7 +184,7 @@ contract Strategy is BaseStrategy {
             return;
         }
 
-        uint256 wantBalance = want.balanceOf(address(this));
+        uint256 wantBalance = balanceOfWant();
 
         uint256 shares = 0;
 
@@ -202,8 +198,7 @@ contract Strategy is BaseStrategy {
             );
         }
 
-        uint256 sharesInBento =
-            bentoBox.balanceOf(BIERC20(address(want)), address(this));
+        uint256 sharesInBento = sharesInBento();
 
         if (sharesInBento > 0) {
             bentoBox.transfer(
@@ -222,7 +217,7 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _liquidatedAmount, uint256 _loss)
     {
-        uint256 totalAssets = want.balanceOf(address(this));
+        uint256 totalAssets = balanceOfWant();
         if (_amountNeeded > totalAssets) {
             uint256 amountToFree = _amountNeeded.sub(totalAssets);
 
@@ -264,11 +259,11 @@ contract Strategy is BaseStrategy {
                     address(this),
                     address(this),
                     0,
-                    bentoBox.balanceOf(BIERC20(address(want)), address(this))
+                    sharesInBento()
                 );
             }
 
-            _liquidatedAmount = want.balanceOf(address(this));
+            _liquidatedAmount = balanceOfWant();
         } else {
             _liquidatedAmount = _amountNeeded;
         }
@@ -276,12 +271,12 @@ contract Strategy is BaseStrategy {
 
     function liquidateAllPositions() internal override returns (uint256) {
         liquidatePosition(type(uint256).max);
-        return want.balanceOf(address(this));
+        return balanceOfWant();
     }
 
     // The _newStrategy must support the same kashiPair or bad things will happen
     function prepareMigration(address _newStrategy) internal override {
-        kashiPair.transfer(_newStrategy, kashiPair.balanceOf(address(this)));
+        kashiPair.transfer(_newStrategy, kashiFraction());
     }
 
     function setKashiPair(address _newKashiPair) external onlyGovernance {
@@ -294,7 +289,7 @@ contract Strategy is BaseStrategy {
             "KashiPair asset does not match want"
         );
 
-        uint256 kashiFraction = kashiPair.balanceOf(address(this));
+        uint256 kashiFraction = kashiFraction();
 
         if (kashiFraction > 0) {
             kashiPair.removeAsset(address(this), kashiFraction);
@@ -302,8 +297,7 @@ contract Strategy is BaseStrategy {
 
         kashiPair = IKashiPair(_newKashiPair);
 
-        uint256 sharesInBento =
-            bentoBox.balanceOf(BIERC20(address(want)), address(this));
+        uint256 sharesInBento = sharesInBento();
 
         if (sharesInBento > 0) {
             bentoBox.transfer(
@@ -315,6 +309,18 @@ contract Strategy is BaseStrategy {
 
             kashiPair.addAsset(address(this), true, sharesInBento);
         }
+    }
+
+    function balanceOfWant() internal view returns (uint256) {
+        return want.balanceOf(address(this));
+    }
+
+    function sharesInBento() internal view returns (uint256) {
+        return bentoBox.balanceOf(BIERC20(address(want)), address(this));
+    }
+
+    function kashiFraction() internal view returns (uint256) {
+        return kashiPair.balanceOf(address(this));
     }
 
     function _toKashiFraction(uint256 bentoShares, bool roundUp)
