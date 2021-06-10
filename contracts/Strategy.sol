@@ -221,9 +221,9 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _liquidatedAmount, uint256 _loss)
     {
-        uint256 totalAssets = balanceOfWant();
-        if (_amountNeeded > totalAssets) {
-            uint256 amountToFree = _amountNeeded.sub(totalAssets);
+        uint256 wantBalance = balanceOfWant();
+        if (_amountNeeded > wantBalance) {
+            uint256 amountToFree = _amountNeeded.sub(wantBalance);
 
             (, uint256 lastAccrued, ) = kashiPair.accrueInfo();
             if (block.timestamp > lastAccrued) {
@@ -231,12 +231,12 @@ contract Strategy is BaseStrategy {
                 kashiPair.accrue();
             }
 
-            uint256 deposited = estimatedTotalAssets().sub(totalAssets);
+            uint256 deposited = estimatedTotalAssets().sub(wantBalance);
 
             if (deposited < amountToFree) {
                 amountToFree = deposited;
             }
-            if (deposited > 0) {
+            if (amountToFree > 0) {
                 uint256 sharesToFree =
                     bentoBox.toShare(
                         BIERC20(address(want)),
