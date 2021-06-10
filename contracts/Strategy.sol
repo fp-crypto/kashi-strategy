@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
-// Feel free to change the license, but this is what we use
 
-// Feel free to change this version of Solidity. We support >=0.6.0 <0.7.0;
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-// These are the core Yearn libraries
 import {
     BaseStrategy,
     StrategyParams
@@ -351,6 +348,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256 kashiFraction)
     {
+        // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L320-L323
         uint256 totalAssetShare = kashiPair.totalAsset().elastic;
         uint256 allShare =
             uint256(kashiPair.totalAsset().elastic).add(
@@ -366,6 +364,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256 bentoShares)
     {
+        // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L351-L353
         uint256 allShare =
             uint256(kashiPair.totalAsset().elastic).add(
                 wantToBentoShares(kashiPair.totalBorrow().elastic, roundUp)
