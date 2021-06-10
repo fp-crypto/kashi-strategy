@@ -349,14 +349,16 @@ contract Strategy is BaseStrategy {
         returns (uint256 kashiFraction)
     {
         // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L320-L323
-        uint256 totalAssetShare = kashiPair.totalAsset().elastic;
+        Rebase memory totalAsset = kashiPair.totalAsset();
+        Rebase memory totalBorrow = kashiPair.totalBorrow();
+        uint256 totalAssetShare = totalAsset.elastic;
         uint256 allShare =
-            uint256(kashiPair.totalAsset().elastic).add(
-                wantToBentoShares(kashiPair.totalBorrow().elastic, !roundUp)
+            uint256(totalAsset.elastic).add(
+                wantToBentoShares(totalBorrow.elastic, !roundUp)
             );
         kashiFraction = allShare == 0
             ? bentoShares
-            : bentoShares.mul(kashiPair.totalAsset().base).div(allShare);
+            : bentoShares.mul(totalAsset.base).div(allShare);
     }
 
     function kashiFractionToBentoShares(uint256 kashiFraction, bool roundUp)
@@ -365,13 +367,13 @@ contract Strategy is BaseStrategy {
         returns (uint256 bentoShares)
     {
         // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L351-L353
+        Rebase memory totalAsset = kashiPair.totalAsset();
+        Rebase memory totalBorrow = kashiPair.totalBorrow();
         uint256 allShare =
-            uint256(kashiPair.totalAsset().elastic).add(
-                wantToBentoShares(kashiPair.totalBorrow().elastic, roundUp)
+            uint256(totalAsset.elastic).add(
+                wantToBentoShares(totalBorrow.elastic, roundUp)
             );
-        bentoShares = kashiFraction.mul(allShare).div(
-            kashiPair.totalAsset().base
-        );
+        bentoShares = kashiFraction.mul(allShare).div(totalAsset.base);
     }
 
     function protectedTokens()
