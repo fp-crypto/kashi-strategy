@@ -116,7 +116,11 @@ contract Strategy is BaseStrategy {
     function name() external view override returns (string memory) {
         return
             string(
-                abi.encodePacked("StrategyKashiLender(", kashiPair.name(), ")")
+                abi.encodePacked(
+                    "StrategyKashiLender(",
+                    kashiPair.symbol(),
+                    ")"
+                )
             );
     }
 
