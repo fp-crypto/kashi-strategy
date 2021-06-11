@@ -101,7 +101,7 @@ contract Strategy is BaseStrategy {
     function _initializeStrat(address _bentoBox, address _kashiPair) internal {
         require(
             address(kashiPair) == address(0),
-            "StategyKashiLending: already initialized"
+            "strategy already initialized"
         );
         require(address(IKashiPair(_kashiPair).bentoBox()) == _bentoBox);
         require(address(IKashiPair(_kashiPair).asset()) == address(want));
@@ -257,14 +257,21 @@ contract Strategy is BaseStrategy {
             }
 
             _liquidatedAmount = balanceOfWant();
+
+            if (_amountNeeded > _liquidatedAmount) {
+                _loss = _amountNeeded.sub(_liquidatedAmount);
+            }
         } else {
             _liquidatedAmount = _amountNeeded;
         }
     }
 
-    function liquidateAllPositions() internal override returns (uint256) {
-        liquidatePosition(type(uint256).max);
-        return balanceOfWant();
+    function liquidateAllPositions()
+        internal
+        override
+        returns (uint256 _liquidatedAmount)
+    {
+        (_liquidatedAmount, ) = liquidatePosition(type(uint256).max);
     }
 
     // The _newStrategy must support the same kashiPair or bad things will happen
