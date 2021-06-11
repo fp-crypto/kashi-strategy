@@ -152,32 +152,28 @@ contract Strategy is BaseStrategy {
         uint256 debt = vault.strategies(address(this)).totalDebt;
 
         if (assets >= debt) {
-            _debtPayment = _debtOutstanding;
             _profit = assets.sub(debt);
+        } else {
+            _loss = debt.sub(assets);
+        }
 
-            uint256 amountToFree = _profit.add(_debtPayment);
+        _debtPayment = _debtOutstanding;
+        uint256 amountToFree = _debtPayment.add(_profit);
 
-            if (amountToFree > 0 && wantBal < amountToFree) {
-                liquidatePosition(amountToFree.sub(wantBal));
+        if (amountToFree > 0 && wantBal < amountToFree) {
+            liquidatePosition(amountToFree.sub(wantBal));
 
-                uint256 newLoose = balanceOfWant();
+            uint256 newLoose = balanceOfWant();
 
-                //if we dont have enough money adjust _debtOutstanding and only change profit if needed
-                if (newLoose < amountToFree) {
-                    if (_profit > newLoose) {
-                        _profit = newLoose;
-                        _debtPayment = 0;
-                    } else {
-                        _debtPayment = Math.min(
-                            newLoose.sub(_profit),
-                            _debtPayment
-                        );
-                    }
+            // if we didnt free enough money, prioritize paying down debt before taking profit
+            if (newLoose < amountToFree) {
+                if (newLoose <= _debtPayment) {
+                    _profit = 0;
+                    _debtPayment = newLoose;
+                } else {
+                    _profit = newLoose.sub(_debtPayment);
                 }
             }
-        } else {
-            //serious loss should never happen but if it does lets record it accurately
-            _loss = debt.sub(assets);
         }
     }
 
