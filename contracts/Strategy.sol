@@ -347,7 +347,6 @@ contract Strategy is BaseStrategy {
         // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L320-L323
         Rebase memory totalAsset = kashiPair.totalAsset();
         Rebase memory totalBorrow = kashiPair.totalBorrow();
-        uint256 totalAssetShare = totalAsset.elastic;
         uint256 allShare =
             uint256(totalAsset.elastic).add(
                 wantToBentoShares(totalBorrow.elastic, !roundUp)
