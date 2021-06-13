@@ -277,22 +277,26 @@ contract Strategy is BaseStrategy {
                         )
                     );
 
+                uint256 sharesFreedFromKashi = 0;
+
                 for (
                     uint256 i = 0;
-                    i < kashiPairs.length && sharesToFreeFromKashi > 0;
+                    i < kashiPairs.length &&
+                        sharesToFreeFromKashi > sharesFreedFromKashi;
                     i++
                 ) {
                     // get the lowest interest pair
                     (, IKashiPair kashiPair) = highestAndLowestInterestPairs();
                     if (address(kashiPair) == address(0)) {
-                        // break if there is no lowestInterest pair with
+                        // break if there is no lowest interest pair
                         break;
                     }
-                    sharesToFreeFromKashi -= liquidateKashiPair(
-                        kashiPair,
-                        sharesToFreeFromKashi
+                    sharesFreedFromKashi = sharesFreedFromKashi.add(
+                        liquidateKashiPair(
+                            kashiPair,
+                            sharesToFreeFromKashi.sub(sharesFreedFromKashi)
+                        )
                     );
-                    i++;
                 }
 
                 bentoBox.withdraw(
