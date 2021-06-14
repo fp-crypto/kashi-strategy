@@ -36,7 +36,7 @@ contract Strategy is BaseStrategy {
     IBentoBox public bentoBox;
     IKashiPair[] public kashiPairs;
 
-    uint256 public dustThreshold = 0;
+    uint256 public dustThreshold = 2;
 
     constructor(
         address _vault,
@@ -111,8 +111,14 @@ contract Strategy is BaseStrategy {
         kashiPairs = new IKashiPair[](_kashiPairs.length);
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
             kashiPairs[i] = IKashiPair(_kashiPairs[i]);
-            require(address(kashiPairs[i].bentoBox()) == _bentoBox);
-            require(address(kashiPairs[i].asset()) == address(want));
+            require(
+                address(kashiPairs[i].bentoBox()) == _bentoBox,
+                "bento does not match"
+            );
+            require(
+                address(kashiPairs[i].asset()) == address(want),
+                "asset does not match want"
+            );
         }
 
         want.safeApprove(_bentoBox, type(uint256).max);
@@ -163,7 +169,10 @@ contract Strategy is BaseStrategy {
                 highestInterest = _interestPerBlock;
                 _highest = kashiPairs[i];
             }
-            if (_interestPerBlock < lowestInterest && kashiFraction(i) > 0) {
+            if (
+                _interestPerBlock < lowestInterest &&
+                kashiFraction(i) > dustThreshold
+            ) {
                 lowestInterest = _interestPerBlock;
                 _lowest = kashiPairs[i];
             }

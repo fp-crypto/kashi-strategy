@@ -5,7 +5,7 @@ from brownie import Contract
 
 @pytest.fixture
 def gov(accounts):
-    yield accounts.at("0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52", force=True)
+    yield accounts.at("0xfB8E20c22f8B58D0BDeAbe62Fb8EE2A56DbD73b2", force=True)
 
 
 @pytest.fixture(scope="session")
@@ -45,13 +45,13 @@ def user_2(accounts):
 
 @pytest.fixture(scope="session")
 def token():
-    token_address = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+    token_address = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
     yield Contract(token_address)
 
 
 @pytest.fixture
 def reserve(accounts):
-    yield accounts.at("0xF977814e90dA44bFA03b6295A0616a897441aceC", force=True)
+    yield accounts.at("0x1a13F4Ca1d028320A707D99520AbFefca3998b7F", force=True)
 
 
 @pytest.fixture(scope="function")
@@ -85,14 +85,18 @@ def weth():
 
 
 @pytest.fixture
-def kashi_pair():
-    kashi_pair = "0xe9E73d71eD122c7b5c9DC3c5087645eaD294A11D"
-    yield Contract(kashi_pair)
+def kashi_pair_0():
+    yield Contract("0xe4b3c431E29B15978556f55b2cd046Be614F558D")
 
 
 @pytest.fixture
-def bento_box(kashi_pair):
-    yield Contract(kashi_pair.bentoBox())
+def kashi_pair_1():
+    yield Contract("0xd51B929792Cfcde30f2619e50E91513dCeC89B23")
+
+
+@pytest.fixture
+def bento_box(kashi_pair_0):
+    yield Contract(kashi_pair_0.bentoBox())
 
 
 @pytest.fixture
@@ -114,8 +118,8 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture(scope="function")
-def strategy(strategist, keeper, vault, Strategy, gov, kashi_pair, bento_box):
-    strategy = strategist.deploy(Strategy, vault, bento_box, [kashi_pair])
+def strategy(strategist, keeper, vault, Strategy, gov, kashi_pair_0, kashi_pair_1, bento_box):
+    strategy = strategist.deploy(Strategy, vault, bento_box, [kashi_pair_0])
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
     yield strategy
