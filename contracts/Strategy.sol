@@ -314,14 +314,21 @@ contract Strategy is BaseStrategy {
     }
 
     function addKashiPair(address _newKashiPair) external onlyGovernance {
+        require(kashiPairs.length < maxPairs, "max pairs already reached");
         require(
             address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox),
-            "BentoBox does not match"
+            "bentoBox does not match"
         );
         require(
             IKashiPair(_newKashiPair).asset() == BIERC20(address(want)),
-            "KashiPair asset does not match want"
+            "kashiPair asset does not match want"
         );
+
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            if (_newKashiPair == address(kashiPairs[i])) {
+                revert("kashiPair already added");
+            }
+        }
 
         kashiPairs.push(IKashiPair(_newKashiPair));
     }

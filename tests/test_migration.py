@@ -47,6 +47,9 @@ def test_new_kashi_pair(token, vault, strategy, amount, gov, user, RELATIVE_APPR
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
+def test_add_existing_kashi_pair(token, vault, strategy, amount, gov, user, kashi_pair_0, RELATIVE_APPROX):
+    with brownie.reverts():
+        strategy.addKashiPair(kashi_pair_0, {"from": gov})
 
 def test_remove_kashi_pair(
     token, vault, strategy, amount, gov, user, kashi_pair_0, RELATIVE_APPROX
