@@ -127,7 +127,7 @@ contract Strategy is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return string(abi.encodePacked("StrategyKashiLender"));
+        return string(abi.encodePacked("StrategyKashiMultiPairLender"));
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
@@ -468,9 +468,6 @@ contract Strategy is BaseStrategy {
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             (uint256 _interestPerBlock, , ) = kashiPairs[i].accrueInfo();
-            // getSushiPerBlock
-            // router.swap
-
             if (_interestPerBlock > highestInterest) {
                 highestInterest = _interestPerBlock;
                 _highest = kashiPairs[i];
