@@ -146,42 +146,16 @@ contract Strategy is BaseStrategy {
         return balanceOfWant().add(bentoSharesToWant(totalShares, true));
     }
 
-    function interestPerBlock()
-        public
-        view
-        returns (uint256[] memory _interestPerBlock)
-    {
-        _interestPerBlock = new uint256[](kashiPairs.length);
-        for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (_interestPerBlock[i], , ) = kashiPairs[i].accrueInfo();
-        }
-    }
-
-    function highestAndLowestInterestPairs()
-        internal
-        view
-        returns (IKashiPair _highest, IKashiPair _lowest)
-    {
-        uint256 highestInterest = 0;
-        uint256 lowestInterest = type(uint256).max;
-
-        for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (uint256 _interestPerBlock, , ) = kashiPairs[i].accrueInfo();
-            // getSushiPerBlock
-            // router.swap
-
-            if (_interestPerBlock > highestInterest) {
-                highestInterest = _interestPerBlock;
-                _highest = kashiPairs[i];
-            }
-            if (
-                _interestPerBlock < lowestInterest &&
-                kashiFraction(i) > dustThreshold
-            ) {
-                lowestInterest = _interestPerBlock;
-                _lowest = kashiPairs[i];
-            }
-        }
+    function kashiPairEstimatedAssets(uint256 i) public view returns (uint256) {
+        return
+            bentoSharesToWant(
+                kashiFractionToBentoShares(
+                    kashiPairs[i],
+                    kashiFraction(i),
+                    true
+                ),
+                true
+            );
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -256,14 +230,7 @@ contract Strategy is BaseStrategy {
             // Get highest interest rate pair
             (IKashiPair kashiPair, ) = highestAndLowestInterestPairs();
 
-            bentoBox.transfer(
-                BIERC20(address(want)),
-                address(this),
-                address(kashiPair),
-                sharesInBento
-            );
-
-            kashiPair.addAsset(address(this), true, sharesInBento);
+            depositInKashiPair(kashiPair, sharesInBento);
         }
     }
 
@@ -374,6 +341,81 @@ contract Strategy is BaseStrategy {
         revert("kashiPair not found");
     }
 
+    function adjustKashiPairRatios(uint256[] memory _ratios)
+        external
+        onlyAuthorized
+    {
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            kashiPairs[i].accrue();
+        }
+
+        uint256 wantBalance = balanceOfWant();
+        if (wantBalance > dustThreshold) {
+            bentoBox.deposit(
+                BIERC20(address(want)),
+                address(this),
+                address(this),
+                wantBalance,
+                0 // setting this to 0, let's the previous argument determine the deposit size
+            );
+        }
+
+        uint256 totalAssets = estimatedTotalAssets();
+        uint256[] memory kashiPairsIncreasedAllocation =
+            new uint256[](kashiPairs.length);
+
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            uint256 pairTotalAssets =
+                bentoSharesToWant(
+                    kashiFractionToBentoShares(
+                        kashiPairs[i],
+                        kashiFraction(i),
+                        true
+                    ),
+                    true
+                );
+            uint256 targetAssets = (_ratios[i] * totalAssets) / 10**4;
+            if (targetAssets < pairTotalAssets) {
+                uint256 toLiquidate = pairTotalAssets.sub(targetAssets);
+                liquidateKashiPair(
+                    kashiPairs[i],
+                    wantToBentoShares(toLiquidate, true)
+                );
+            } else if (targetAssets > pairTotalAssets) {
+                kashiPairsIncreasedAllocation[i] = targetAssets.sub(
+                    pairTotalAssets
+                );
+            }
+        }
+
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            if (kashiPairsIncreasedAllocation[i] == 0) continue;
+
+            uint256 sharesInBento = sharesInBento();
+            uint256 sharesToAdd =
+                wantToBentoShares(kashiPairsIncreasedAllocation[i], true);
+
+            if (sharesToAdd > sharesInBento) {
+                sharesToAdd = sharesInBento;
+            }
+
+            depositInKashiPair(kashiPairs[i], sharesToAdd);
+        }
+    }
+
+    function depositInKashiPair(IKashiPair kashiPair, uint256 sharesToDeposit)
+        internal
+    {
+        bentoBox.transfer(
+            BIERC20(address(want)),
+            address(this),
+            address(kashiPair),
+            sharesToDeposit
+        );
+
+        kashiPair.addAsset(address(this), true, sharesToDeposit);
+    }
+
     function liquidateKashiPair(IKashiPair kashiPair, uint256 sharesToFree)
         internal
         returns (uint256 _shareLiquiduated)
@@ -416,14 +458,30 @@ contract Strategy is BaseStrategy {
         return kashiPairs[i].balanceOf(address(this));
     }
 
-    function kashiFractions()
+    function highestAndLowestInterestPairs()
         internal
         view
-        returns (uint256[] memory _kashiFractions)
+        returns (IKashiPair _highest, IKashiPair _lowest)
     {
-        _kashiFractions = new uint256[](kashiPairs.length);
+        uint256 highestInterest = 0;
+        uint256 lowestInterest = type(uint256).max;
+
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            _kashiFractions[i] = kashiFraction(i);
+            (uint256 _interestPerBlock, , ) = kashiPairs[i].accrueInfo();
+            // getSushiPerBlock
+            // router.swap
+
+            if (_interestPerBlock > highestInterest) {
+                highestInterest = _interestPerBlock;
+                _highest = kashiPairs[i];
+            }
+            if (
+                _interestPerBlock < lowestInterest &&
+                kashiFraction(i) > dustThreshold
+            ) {
+                lowestInterest = _interestPerBlock;
+                _lowest = kashiPairs[i];
+            }
         }
     }
 

@@ -59,7 +59,53 @@ def test_profitable_harvest(
 
     # Sleep for a while to earn yield
     chain.sleep(3600)
-    chain.mine(1800)
+    chain.mine(270)
+
+    # Harvest 2: Realize profit
+    before_pps = vault.pricePerShare()
+    strategy.harvest()
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
+    chain.mine(1)
+    profit = token.balanceOf(vault.address)  # Profits go to vault
+    assert strategy.estimatedTotalAssets() + profit > amount
+    assert vault.pricePerShare() > before_pps
+
+
+def test_adjust_ratios(
+    chain,
+    accounts,
+    token,
+    vault,
+    strategy,
+    user,
+    strategist,
+    gov,
+    amount,
+    kashi_pairs,
+    RELATIVE_APPROX,
+):
+    # Deposit to the vault
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
+    assert token.balanceOf(vault.address) == amount
+
+    # Harvest 1: Send funds through the strategy
+    chain.sleep(1)
+    strategy.harvest()
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    # Sleep for a while to earn yield
+    chain.sleep(3600)
+    chain.mine(270)
+
+    strategy.adjustKashiPairRatios([5000, 5000], {"from": gov})
+    assert (
+        pytest.approx(
+            strategy.kashiPairEstimatedAssets(0) / 10 ** token.decimals(),
+            rel=RELATIVE_APPROX,
+        )
+        == strategy.kashiPairEstimatedAssets(1) / 10 ** token.decimals()
+    )
 
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
@@ -82,6 +128,7 @@ def test_multiple_users(
     strategist,
     amount,
     amount_2,
+    kashi_pairs,
     RELATIVE_APPROX,
 ):
     # Deposit to the vault

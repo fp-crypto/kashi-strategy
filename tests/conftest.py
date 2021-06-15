@@ -3,7 +3,7 @@ from brownie import config
 from brownie import Contract
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def gov(accounts):
     yield accounts.at("0xfB8E20c22f8B58D0BDeAbe62Fb8EE2A56DbD73b2", force=True)
 
@@ -49,14 +49,14 @@ def token():
     yield Contract(token_address)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def reserve(accounts):
     yield accounts.at("0x0A59649758aa4d66E25f08Dd01271e891fe52199", force=True)
 
 
 @pytest.fixture(scope="function")
 def amount(accounts, reserve, token, user):
-    amount = 10_000 * 10 ** token.decimals()
+    amount = 250_000 * 10 ** token.decimals()
     token.transfer(user, amount, {"from": reserve})
 
     yield amount
@@ -68,7 +68,7 @@ def amount(accounts, reserve, token, user):
 
 @pytest.fixture(scope="function")
 def amount_2(accounts, reserve, token, user_2):
-    amount_2 = 2_500 * 10 ** token.decimals()
+    amount_2 = 50_000 * 10 ** token.decimals()
     token.transfer(user_2, amount_2, {"from": reserve})
 
     yield amount_2
@@ -78,28 +78,28 @@ def amount_2(accounts, reserve, token, user_2):
         assert token.balanceOf(user_2) == 0
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def weth():
     token_address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     yield Contract(token_address)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def kashi_pair_0():
-    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")
-
-
-@pytest.fixture
-def kashi_pair_1():
     yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
+def kashi_pair_1():
+    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")
+
+
+@pytest.fixture(scope="session")
 def kashi_pairs(kashi_pair_0, kashi_pair_1):
     yield [kashi_pair_0, kashi_pair_1]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def bento_box(kashi_pair_0):
     yield Contract(kashi_pair_0.bentoBox())
 
