@@ -86,27 +86,52 @@ def weth():
 
 @pytest.fixture(scope="session")
 def kashi_pair_0():
-    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")
+    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")  # pid 247
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_1():
-    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")
+    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")  # pid 198
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_2():
-    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")
+    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")  # pid 225
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_3():
-    yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")
+    yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")  # pid 222
+
+
+@pytest.fixture(scope="session")
+def pid_0():
+    yield 247
+
+
+@pytest.fixture(scope="session")
+def pid_1():
+    yield 198
+
+
+@pytest.fixture(scope="session")
+def pid_2():
+    yield 225
+
+
+@pytest.fixture(scope="session")
+def pid_3():
+    yield 222
 
 
 @pytest.fixture(scope="session")
 def kashi_pairs(kashi_pair_0, kashi_pair_1, kashi_pair_2, kashi_pair_3):
     yield [kashi_pair_0, kashi_pair_1, kashi_pair_2, kashi_pair_3]
+
+
+@pytest.fixture(scope="session")
+def pids(pid_0, pid_1, pid_2, pid_3):
+    yield [pid_0, pid_1, pid_2, pid_3]
 
 
 @pytest.fixture(scope="session")
@@ -133,8 +158,8 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture(scope="function")
-def strategy(strategist, keeper, vault, Strategy, gov, kashi_pairs, bento_box):
-    strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs)
+def strategy(strategist, keeper, vault, Strategy, gov, kashi_pairs, bento_box, pids):
+    strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs, pids)
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
     yield strategy

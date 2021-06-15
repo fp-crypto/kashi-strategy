@@ -79,7 +79,6 @@ def test_adjust_ratios(
     strategy,
     user,
     strategist,
-    gov,
     amount,
     kashi_pairs,
     RELATIVE_APPROX,
@@ -98,7 +97,7 @@ def test_adjust_ratios(
     chain.sleep(3600)
     chain.mine(270)
 
-    strategy.adjustKashiPairRatios([2500, 2500, 2500, 2500], {"from": gov})
+    strategy.adjustKashiPairRatios([2500, 2500, 2500, 2500], {"from": strategist})
 
     for n in range(1, len(kashi_pairs)):
         assert (
@@ -226,7 +225,7 @@ def test_multiple_users_and_adjust_ratios(
     chain.sleep(360)
     chain.mine(27)
 
-    strategy.adjustKashiPairRatios([2500, 2500, 2500, 2500], {"from": gov})
+    strategy.adjustKashiPairRatios([2500, 2500, 2500, 2500], {"from": strategist})
 
     for n in range(1, len(kashi_pairs)):
         assert (

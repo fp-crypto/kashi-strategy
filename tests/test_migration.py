@@ -16,6 +16,7 @@ def test_migration(
     RELATIVE_APPROX,
     bento_box,
     kashi_pairs,
+    pids,
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
@@ -25,7 +26,7 @@ def test_migration(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     # migrate to a new strategy
-    new_strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs)
+    new_strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs, pids)
     vault.migrateStrategy(strategy, new_strategy, {"from": gov})
     assert (
         pytest.approx(new_strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX)
@@ -44,7 +45,7 @@ def test_new_kashi_pair(
 
     new_kashi_pair = Contract("0x40a12179260997c55619DE3290c5b9918588E791")
 
-    strategy.addKashiPair(new_kashi_pair, {"from": gov})
+    strategy.addKashiPair(new_kashi_pair, 0, {"from": gov})
     assert strategy.kashiPairs(len(kashi_pairs)) == new_kashi_pair.address
 
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
@@ -95,8 +96,8 @@ def test_invalid_new_kashi_pair(
 
     invalid_kashi_pair = Contract("0x11111112542D85B3EF69AE05771c2dCCff4fAa26")
     with brownie.reverts():
-        strategy.addKashiPair(invalid_kashi_pair, {"from": gov})
+        strategy.addKashiPair(invalid_kashi_pair, 0, {"from": gov})
 
     invalid_kashi_pair = Contract("0x809F2B68f59272740508333898D4e9432A839C75")
     with brownie.reverts():
-        strategy.addKashiPair(invalid_kashi_pair, {"from": gov})
+        strategy.addKashiPair(invalid_kashi_pair, 0, {"from": gov})

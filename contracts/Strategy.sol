@@ -24,6 +24,8 @@ import {
     RebaseLibrary
 } from "./boringcrypto/boring-solidity/libraries/BoringRebase.sol";
 import {BIERC20} from "./boringcrypto/boring-solidity/interfaces/IERC20.sol";
+import "./sushiswap/sushiswap/interfaces/IMasterChef.sol";
+import "./uniswapv2/interfaces/IUniswapV2Router02.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -31,20 +33,38 @@ contract Strategy is BaseStrategy {
     using SafeMath for uint256;
     using RebaseLibrary for Rebase;
 
+    struct KashiPairInfo {
+        IKashiPair kashiPair;
+        uint256 pid;
+    }
+
     bool internal isOriginal = true;
     uint256 internal constant maxPairs = 5;
 
     IBentoBox public bentoBox;
-    IKashiPair[] public kashiPairs;
+    KashiPairInfo[] public kashiPairs;
 
     uint256 public dustThreshold = 2;
+
+    // Path for swaps
+    address[] private path;
+
+    IUniswapV2Router02 private constant sushiRouter =
+        IUniswapV2Router02(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F);
+    IMasterChef private constant masterChef =
+        IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
+    IERC20 private constant weth =
+        IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IERC20 private constant sushi =
+        IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
 
     constructor(
         address _vault,
         address _bentoBox,
-        address[] memory _kashiPairs
+        address[] memory _kashiPairs,
+        uint256[] memory _pids
     ) public BaseStrategy(_vault) {
-        _initializeStrat(_bentoBox, _kashiPairs);
+        _initializeStrat(_bentoBox, _kashiPairs, _pids);
     }
 
     function initialize(
@@ -53,10 +73,11 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         address _bentoBox,
-        address[] memory _kashiPairs
+        address[] memory _kashiPairs,
+        uint256[] memory _pids
     ) public {
         _initialize(_vault, _strategist, _rewards, _keeper);
-        _initializeStrat(_bentoBox, _kashiPairs);
+        _initializeStrat(_bentoBox, _kashiPairs, _pids);
     }
 
     event Cloned(address indexed clone);
@@ -67,7 +88,8 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         address _bentoBox,
-        address[] memory _kashiPairs
+        address[] memory _kashiPairs,
+        uint256[] memory _pids
     ) external returns (address newStrategy) {
         require(isOriginal);
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
@@ -93,37 +115,58 @@ contract Strategy is BaseStrategy {
             _rewards,
             _keeper,
             _bentoBox,
-            _kashiPairs
+            _kashiPairs,
+            _pids
         );
 
         emit Cloned(newStrategy);
     }
 
-    function _initializeStrat(address _bentoBox, address[] memory _kashiPairs)
-        internal
-    {
+    function _initializeStrat(
+        address _bentoBox,
+        address[] memory _kashiPairs,
+        uint256[] memory _pids
+    ) internal {
         require(
             address(bentoBox) == address(0),
             "strategy already initialized"
         );
         require(_kashiPairs.length <= maxPairs, "exceeded maxPairs");
+        require(
+            _kashiPairs.length == _pids.length,
+            "kashiPairs and pids must be same length"
+        );
 
         bentoBox = IBentoBox(_bentoBox);
 
-        kashiPairs = new IKashiPair[](_kashiPairs.length);
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
-            kashiPairs[i] = IKashiPair(_kashiPairs[i]);
+            kashiPairs.push(
+                KashiPairInfo(IKashiPair(_kashiPairs[i]), _pids[i])
+            );
             require(
-                address(kashiPairs[i].bentoBox()) == _bentoBox,
+                address(kashiPairs[i].kashiPair.bentoBox()) == _bentoBox,
                 "bento does not match"
             );
             require(
-                address(kashiPairs[i].asset()) == address(want),
+                address(kashiPairs[i].kashiPair.asset()) == address(want),
                 "asset does not match want"
             );
+
+            if (_pids[i] != 0) {
+                IERC20(_kashiPairs[i]).safeApprove(
+                    address(masterChef),
+                    type(uint256).max
+                );
+            }
         }
 
         want.safeApprove(_bentoBox, type(uint256).max);
+        sushi.safeApprove(address(sushiRouter), type(uint256).max);
+
+        // Initialize the swap path
+        path = new address[](2);
+        path[0] = address(sushi);
+        path[1] = address(want);
     }
 
     function name() external view override returns (string memory) {
@@ -136,7 +179,7 @@ contract Strategy is BaseStrategy {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             totalShares = totalShares.add(
                 kashiFractionToBentoShares(
-                    kashiPairs[i],
+                    kashiPairs[i].kashiPair,
                     kashiFraction(i),
                     true
                 )
@@ -150,7 +193,7 @@ contract Strategy is BaseStrategy {
         return
             bentoSharesToWant(
                 kashiFractionToBentoShares(
-                    kashiPairs[i],
+                    kashiPairs[i].kashiPair,
                     kashiFraction(i),
                     true
                 ),
@@ -168,11 +211,18 @@ contract Strategy is BaseStrategy {
         )
     {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (, uint256 lastAccrued, ) = kashiPairs[i].accrueInfo();
+            (, uint256 lastAccrued, ) = kashiPairs[i].kashiPair.accrueInfo();
+            // Accure interest
             if (block.timestamp > lastAccrued) {
-                kashiPairs[i].accrue();
+                kashiPairs[i].kashiPair.accrue();
+            }
+            // Claim masterchef rewards
+            if (kashiPairs[i].pid != 0) {
+                masterChef.deposit(kashiPairs[i].pid, 0);
             }
         }
+
+        sell();
 
         uint256 assets = estimatedTotalAssets();
         uint256 wantBal = balanceOfWant();
@@ -228,9 +278,9 @@ contract Strategy is BaseStrategy {
 
         if (sharesInBento > wantToBentoShares(dustThreshold, false)) {
             // Get highest interest rate pair
-            (IKashiPair kashiPair, ) = highestAndLowestInterestPairs();
+            (uint256 highestInterestIndex, ) = highestAndLowestInterestPairs();
 
-            depositInKashiPair(kashiPair, sharesInBento);
+            depositInKashiPair(highestInterestIndex, sharesInBento);
         }
     }
 
@@ -266,14 +316,15 @@ contract Strategy is BaseStrategy {
                     i++
                 ) {
                     // get the lowest interest pair
-                    (, IKashiPair kashiPair) = highestAndLowestInterestPairs();
-                    if (address(kashiPair) == address(0)) {
-                        // break if there is no lowest interest pair
+                    (, uint256 lowestInterestIndex) =
+                        highestAndLowestInterestPairs();
+                    if (lowestInterestIndex == type(uint256).max) {
+                        // break if the index is max uint256 indicating no liquidity
                         break;
                     }
                     sharesFreedFromKashi = sharesFreedFromKashi.add(
                         liquidateKashiPair(
-                            kashiPair,
+                            lowestInterestIndex,
                             sharesToFreeFromKashi.sub(sharesFreedFromKashi)
                         )
                     );
@@ -309,39 +360,66 @@ contract Strategy is BaseStrategy {
     // The _newStrategy must support the same kashiPairs or bad things will happen
     function prepareMigration(address _newStrategy) internal override {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            kashiPairs[i].transfer(_newStrategy, kashiFraction(i));
+            liquidateKashiPair(
+                i,
+                kashiFractionToBentoShares(
+                    kashiPairs[i].kashiPair,
+                    kashiFraction(i),
+                    true
+                )
+            );
         }
+
+        bentoBox.transfer(
+            BIERC20(address(want)),
+            address(this),
+            _newStrategy,
+            sharesInBento()
+        );
+
+        sell();
     }
 
-    function addKashiPair(address _newKashiPair) external onlyGovernance {
-        require(kashiPairs.length < maxPairs, "max pairs already reached");
+    function addKashiPair(address _newKashiPair, uint256 _newPid)
+        external
+        onlyGovernance
+    {
+        require(kashiPairs.length < maxPairs, "max pairs reached");
         require(
             address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox),
-            "bentoBox does not match"
+            "bentoBox doesn't match"
         );
         require(
             IKashiPair(_newKashiPair).asset() == BIERC20(address(want)),
-            "kashiPair asset does not match want"
+            "kashiPair asset doesn't match want"
         );
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            if (_newKashiPair == address(kashiPairs[i])) {
+            if (_newKashiPair == address(kashiPairs[i].kashiPair)) {
                 revert("kashiPair already added");
             }
         }
 
-        kashiPairs.push(IKashiPair(_newKashiPair));
+        kashiPairs.push(KashiPairInfo(IKashiPair(_newKashiPair), _newPid));
+
+        if (_newPid != 0) {
+            IERC20(_newKashiPair).safeApprove(
+                address(masterChef),
+                type(uint256).max
+            );
+        }
     }
 
     function removeKashiPair(address _remKashiPair) external onlyGovernance {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            if (_remKashiPair != address(kashiPairs[i])) continue;
+            if (_remKashiPair != address(kashiPairs[i].kashiPair)) continue;
             liquidateKashiPair(
-                kashiPairs[i],
+                i,
                 wantToBentoShares(estimatedTotalAssets(), true)
             );
             kashiPairs[i] = kashiPairs[kashiPairs.length - 1];
             kashiPairs.pop();
+            IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
             return;
         }
 
@@ -361,7 +439,7 @@ contract Strategy is BaseStrategy {
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             // We must accrue all pairs to ensure we get an accurate estimate of assets
-            kashiPairs[i].accrue();
+            kashiPairs[i].kashiPair.accrue();
             totalRatio += _ratios[i];
         }
 
@@ -386,7 +464,7 @@ contract Strategy is BaseStrategy {
             uint256 pairTotalAssets =
                 bentoSharesToWant(
                     kashiFractionToBentoShares(
-                        kashiPairs[i],
+                        kashiPairs[i].kashiPair,
                         kashiFraction(i),
                         true
                     ),
@@ -395,10 +473,7 @@ contract Strategy is BaseStrategy {
             uint256 targetAssets = (_ratios[i] * totalAssets) / 10**4;
             if (targetAssets < pairTotalAssets) {
                 uint256 toLiquidate = pairTotalAssets.sub(targetAssets);
-                liquidateKashiPair(
-                    kashiPairs[i],
-                    wantToBentoShares(toLiquidate, true)
-                );
+                liquidateKashiPair(i, wantToBentoShares(toLiquidate, true));
             } else if (targetAssets > pairTotalAssets) {
                 kashiPairsIncreasedAllocation[i] = targetAssets.sub(
                     pairTotalAssets
@@ -417,43 +492,95 @@ contract Strategy is BaseStrategy {
                 sharesToAdd = sharesInBento;
             }
 
-            depositInKashiPair(kashiPairs[i], sharesToAdd);
+            depositInKashiPair(i, sharesToAdd);
         }
     }
 
-    function depositInKashiPair(IKashiPair kashiPair, uint256 sharesToDeposit)
+    function depositInKashiPair(uint256 kashiPairIndex, uint256 sharesToDeposit)
         internal
     {
         bentoBox.transfer(
             BIERC20(address(want)),
             address(this),
-            address(kashiPair),
+            address(kashiPairs[kashiPairIndex].kashiPair),
             sharesToDeposit
         );
 
-        kashiPair.addAsset(address(this), true, sharesToDeposit);
+        uint256 depositedFraction =
+            kashiPairs[kashiPairIndex].kashiPair.addAsset(
+                address(this),
+                true,
+                sharesToDeposit
+            );
+
+        if (kashiPairs[kashiPairIndex].pid != 0) {
+            masterChef.deposit(
+                kashiPairs[kashiPairIndex].pid,
+                depositedFraction
+            );
+        }
     }
 
-    function liquidateKashiPair(IKashiPair kashiPair, uint256 sharesToFree)
+    function liquidateKashiPair(uint256 kashiPairIndex, uint256 sharesToFree)
         internal
         returns (uint256 _shareLiquiduated)
     {
-        (, uint256 lastAccrued, ) = kashiPair.accrueInfo();
+        (, uint256 lastAccrued, ) =
+            kashiPairs[kashiPairIndex].kashiPair.accrueInfo();
         if (block.timestamp > lastAccrued) {
             // We need to call accrue to accurately calculate totalAssets
-            kashiPair.accrue();
+            kashiPairs[kashiPairIndex].kashiPair.accrue();
         }
 
-        uint256 fractionBalance = kashiPair.balanceOf(address(this));
         uint256 fractionsToFree =
-            bentoSharesToKashiFraction(kashiPair, sharesToFree, true);
+            bentoSharesToKashiFraction(
+                kashiPairs[kashiPairIndex].kashiPair,
+                sharesToFree,
+                true
+            );
+
+        // Remove from masterChef if there is a non-zero pid
+        if (kashiPairs[kashiPairIndex].pid != 0) {
+            uint256 fractionInMc =
+                masterChef
+                    .userInfo(kashiPairs[kashiPairIndex].pid, address(this))
+                    .amount;
+            uint256 fractionsToFreeFromMc = fractionsToFree;
+            if (fractionsToFreeFromMc > fractionInMc) {
+                fractionsToFreeFromMc = fractionInMc;
+            }
+            masterChef.withdraw(
+                kashiPairs[kashiPairIndex].pid,
+                fractionsToFreeFromMc
+            );
+        }
+
+        uint256 fractionBalance =
+            kashiPairs[kashiPairIndex].kashiPair.balanceOf(address(this));
+
         if (fractionsToFree > fractionBalance) {
             fractionsToFree = fractionBalance;
         }
 
-        _shareLiquiduated = kashiPair.removeAsset(
+        _shareLiquiduated = kashiPairs[kashiPairIndex].kashiPair.removeAsset(
             address(this),
             fractionsToFree
+        );
+    }
+
+    //sell all function
+    function sell() internal {
+        uint256 sushiBal = balanceOfSushi();
+        if (sushiBal == 0) {
+            return;
+        }
+
+        sushiRouter.swapExactTokensForTokens(
+            sushiBal,
+            uint256(0),
+            path,
+            address(this),
+            now
         );
     }
 
@@ -464,38 +591,58 @@ contract Strategy is BaseStrategy {
         dustThreshold = _newDustThreshold;
     }
 
+    function setPath(address[] calldata _path) public onlyGovernance {
+        path = _path;
+    }
+
     function balanceOfWant() internal view returns (uint256) {
         return want.balanceOf(address(this));
+    }
+
+    function balanceOfSushi() internal view returns (uint256) {
+        return sushi.balanceOf(address(this));
     }
 
     function sharesInBento() internal view returns (uint256) {
         return bentoBox.balanceOf(BIERC20(address(want)), address(this));
     }
 
-    function kashiFraction(uint256 i) internal view returns (uint256) {
-        return kashiPairs[i].balanceOf(address(this));
+    function kashiFraction(uint256 i)
+        internal
+        view
+        returns (uint256 _kashiFraction)
+    {
+        if (kashiPairs[i].pid != 0) {
+            _kashiFraction = masterChef
+                .userInfo(kashiPairs[i].pid, address(this))
+                .amount;
+        }
+
+        _kashiFraction.add(kashiPairs[i].kashiPair.balanceOf(address(this)));
     }
 
     function highestAndLowestInterestPairs()
         internal
         view
-        returns (IKashiPair _highest, IKashiPair _lowest)
+        returns (uint256 _highestIndex, uint256 _lowestIndex)
     {
         uint256 highestInterest = 0;
         uint256 lowestInterest = type(uint256).max;
+        _lowestIndex = type(uint256).max; // Max indicate no low APR with liquidity
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (uint256 _interestPerBlock, , ) = kashiPairs[i].accrueInfo();
+            (uint256 _interestPerBlock, , ) =
+                kashiPairs[i].kashiPair.accrueInfo();
             if (_interestPerBlock > highestInterest) {
                 highestInterest = _interestPerBlock;
-                _highest = kashiPairs[i];
+                _highestIndex = i;
             }
             if (
                 _interestPerBlock < lowestInterest &&
                 kashiFraction(i) > dustThreshold
             ) {
                 lowestInterest = _interestPerBlock;
-                _lowest = kashiPairs[i];
+                _lowestIndex = i;
             }
         }
     }
