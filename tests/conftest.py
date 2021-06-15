@@ -56,7 +56,7 @@ def reserve(accounts):
 
 @pytest.fixture(scope="function")
 def amount(accounts, reserve, token, user):
-    amount = 250_000 * 10 ** token.decimals()
+    amount = 10_000 * 10 ** token.decimals()
     token.transfer(user, amount, {"from": reserve})
 
     yield amount
@@ -68,7 +68,7 @@ def amount(accounts, reserve, token, user):
 
 @pytest.fixture(scope="function")
 def amount_2(accounts, reserve, token, user_2):
-    amount_2 = 50_000 * 10 ** token.decimals()
+    amount_2 = 2_500 * 10 ** token.decimals()
     token.transfer(user_2, amount_2, {"from": reserve})
 
     yield amount_2
@@ -95,8 +95,18 @@ def kashi_pair_1():
 
 
 @pytest.fixture(scope="session")
-def kashi_pairs(kashi_pair_0, kashi_pair_1):
-    yield [kashi_pair_0, kashi_pair_1]
+def kashi_pair_2():
+    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")
+
+
+@pytest.fixture(scope="session")
+def kashi_pair_3():
+    yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")
+
+
+@pytest.fixture(scope="session")
+def kashi_pairs(kashi_pair_0, kashi_pair_1, kashi_pair_2, kashi_pair_3):
+    yield [kashi_pair_0, kashi_pair_1, kashi_pair_2, kashi_pair_3]
 
 
 @pytest.fixture(scope="session")

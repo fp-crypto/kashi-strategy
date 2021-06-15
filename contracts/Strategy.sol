@@ -37,7 +37,7 @@ contract Strategy is BaseStrategy {
     IBentoBox public bentoBox;
     IKashiPair[] public kashiPairs;
 
-    uint256 public dustThreshold = 0;
+    uint256 public dustThreshold = 2;
 
     constructor(
         address _vault,
@@ -352,9 +352,20 @@ contract Strategy is BaseStrategy {
         external
         onlyAuthorized
     {
+        require(
+            _ratios.length == kashiPairs.length,
+            "length must match number of kashiPairs"
+        );
+
+        uint256 totalRatio = 0;
+
         for (uint256 i = 0; i < kashiPairs.length; i++) {
+            // We must accrue all pairs to ensure we get an accurate estimate of assets
             kashiPairs[i].accrue();
+            totalRatio += _ratios[i];
         }
+
+        require(totalRatio == 10_000, "ratios must add to 10000 bps");
 
         uint256 wantBalance = balanceOfWant();
         if (wantBalance > dustThreshold) {
