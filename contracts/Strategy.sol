@@ -37,7 +37,7 @@ contract Strategy is BaseStrategy {
     IBentoBox public bentoBox;
     IKashiPair[] public kashiPairs;
 
-    uint256 public dustThreshold = 2;
+    uint256 public dustThreshold = 0;
 
     constructor(
         address _vault,

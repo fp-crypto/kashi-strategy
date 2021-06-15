@@ -101,10 +101,10 @@ def test_adjust_ratios(
     strategy.adjustKashiPairRatios([5000, 5000], {"from": gov})
     assert (
         pytest.approx(
-            strategy.kashiPairEstimatedAssets(0) / 10 ** token.decimals(),
+            kashi_pair_in_want(kashi_pairs[0], strategy) / 10 ** token.decimals(),
             rel=RELATIVE_APPROX,
         )
-        == strategy.kashiPairEstimatedAssets(1) / 10 ** token.decimals()
+        == kashi_pair_in_want(kashi_pairs[1], strategy) / 10 ** token.decimals()
     )
 
     # Harvest 2: Realize profit
@@ -115,6 +115,13 @@ def test_adjust_ratios(
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount
     assert vault.pricePerShare() > before_pps
+
+    before_pps = vault.pricePerShare()
+    vault.withdraw({"from": user})
+    assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
+        before_pps / 10 ** vault.decimals()
+    )
+    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
 
 def test_multiple_users(
@@ -189,6 +196,96 @@ def test_multiple_users(
     assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
 
+def test_multiple_users_and_adjust_ratios(
+    chain,
+    accounts,
+    token,
+    vault,
+    strategy,
+    user,
+    user_2,
+    strategist,
+    amount,
+    amount_2,
+    kashi_pairs,
+    RELATIVE_APPROX,
+):
+    # Deposit to the vault
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
+    assert token.balanceOf(vault.address) == amount
+
+    # Harvest 1: Send funds through the strategy
+    chain.sleep(1)
+    strategy.harvest()
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    # Sleep for a while to earn yield
+    chain.sleep(360)
+    chain.mine(27)
+
+    strategy.adjustKashiPairRatios([5000, 5000], {"from": strategist})
+    assert (
+        pytest.approx(
+            kashi_pair_in_want(kashi_pairs[0], strategy) / 10 ** token.decimals(),
+            rel=RELATIVE_APPROX,
+        )
+        == kashi_pair_in_want(kashi_pairs[1], strategy) / 10 ** token.decimals()
+    )
+
+    token.approve(vault.address, amount, {"from": user_2})
+    vault.deposit(amount_2, {"from": user_2})
+    assert token.balanceOf(vault.address) >= amount_2
+
+    # Sleep for a while to earn yield
+    chain.sleep(360)
+    chain.mine(27)
+
+    # Harvest 2: Realize profit
+    before_pps = vault.pricePerShare()
+    strategy.harvest()
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
+    chain.mine(1)
+    profit = token.balanceOf(vault.address)  # Profits go to vault
+    assert strategy.estimatedTotalAssets() + profit > amount + amount_2
+    assert vault.pricePerShare() > before_pps
+
+    before_pps = vault.pricePerShare()
+    vault.withdraw({"from": user_2})
+    assert token.balanceOf(user_2) > amount_2
+    assert pytest.approx(token.balanceOf(user_2), rel=RELATIVE_APPROX) == amount_2 * (
+        before_pps / 10 ** vault.decimals()
+    )
+    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
+
+    # Sleep for a while to earn yield
+    chain.sleep(3600)
+    chain.mine(270)
+
+    # Harvest 2: Realize profit
+    before_pps = vault.pricePerShare()
+    strategy.harvest()
+    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    chain.mine(1)
+    assert vault.pricePerShare() > before_pps
+
+    strategy.adjustKashiPairRatios([7500, 2500], {"from": strategist})
+    assert (
+        pytest.approx(
+            kashi_pair_in_want(kashi_pairs[0], strategy) / 10 ** token.decimals(),
+            rel=RELATIVE_APPROX,
+        )
+        == kashi_pair_in_want(kashi_pairs[1], strategy) * 3 / 10 ** token.decimals()
+    )
+
+    before_pps = vault.pricePerShare()
+    vault.withdraw({"from": user})
+    assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
+        before_pps / 10 ** vault.decimals()
+    )
+    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
+
+
 def test_change_debt(
     chain, gov, token, vault, strategy, user, strategist, amount, RELATIVE_APPROX
 ):
@@ -231,3 +328,16 @@ def test_sweep(gov, vault, strategy, token, user, amount, weth, weth_amout):
     assert weth.balanceOf(user) == 0
     strategy.sweep(weth, {"from": gov})
     assert weth.balanceOf(gov) == weth_amout + before_balance
+
+
+def kashi_pair_in_want(kashi_pair, account):
+    kashi_fraction = kashi_pair.balanceOf(account)
+    bento_box = Contract(kashi_pair.bentoBox())
+    token = Contract(kashi_pair.asset())
+    total_asset = kashi_pair.totalAsset().dict()
+    total_borrow = kashi_pair.totalBorrow().dict()
+    all_share = total_asset["elastic"] + bento_box.toShare(
+        token, total_borrow["elastic"], True
+    )
+    bento_shares = (kashi_fraction * all_share) / total_asset["base"]
+    return bento_box.toAmount(token, bento_shares, True)
