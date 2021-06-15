@@ -14,7 +14,7 @@ def test_clone(
     Strategy,
     vault,
     bento_box,
-    kashi_pair,
+    kashi_pairs,
     user,
     amount,
 ):
@@ -26,7 +26,7 @@ def test_clone(
             rewards,
             keeper,
             bento_box,
-            kashi_pair,
+            kashi_pairs,
             {"from": gov},
         )
 
@@ -37,7 +37,7 @@ def test_clone(
         rewards,
         keeper,
         bento_box,
-        kashi_pair,
+        kashi_pairs,
         {"from": gov},
     )
     new_strategy = Strategy.at(tx.return_value)
@@ -50,7 +50,7 @@ def test_clone(
             rewards,
             keeper,
             bento_box,
-            kashi_pair,
+            kashi_pairs,
             {"from": gov},
         )
 

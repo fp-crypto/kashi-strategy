@@ -32,6 +32,7 @@ contract Strategy is BaseStrategy {
     using RebaseLibrary for Rebase;
 
     bool internal isOriginal = true;
+    uint256 internal constant maxPairs = 5;
 
     IBentoBox public bentoBox;
     IKashiPair[] public kashiPairs;
@@ -105,6 +106,7 @@ contract Strategy is BaseStrategy {
             address(bentoBox) == address(0),
             "strategy already initialized"
         );
+        require(_kashiPairs.length <= maxPairs, "exceeded maxPairs");
 
         bentoBox = IBentoBox(_bentoBox);
 
@@ -165,6 +167,9 @@ contract Strategy is BaseStrategy {
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             (uint256 _interestPerBlock, , ) = kashiPairs[i].accrueInfo();
+            // getSushiPerBlock
+            // router.swap
+
             if (_interestPerBlock > highestInterest) {
                 highestInterest = _interestPerBlock;
                 _highest = kashiPairs[i];
@@ -277,14 +282,13 @@ contract Strategy is BaseStrategy {
                 amountToFree = deposited;
             }
             if (amountToFree > 0) {
-                uint256 sharesToFree = wantToBentoShares(amountToFree, true);
+                uint256 sharesNeeded = wantToBentoShares(amountToFree, true);
+                uint256 bentoShares = sharesInBento();
+
                 uint256 sharesToFreeFromKashi =
-                    sharesToFree.sub(
-                        bentoBox.balanceOf(
-                            BIERC20(address(want)),
-                            address(this)
-                        )
-                    );
+                    bentoShares <= sharesNeeded
+                        ? sharesNeeded.sub(bentoShares)
+                        : 0;
 
                 uint256 sharesFreedFromKashi = 0;
 
@@ -335,9 +339,11 @@ contract Strategy is BaseStrategy {
         (_liquidatedAmount, ) = liquidatePosition(type(uint256).max);
     }
 
-    // The _newStrategy must support the same kashiPair or bad things will happen
+    // The _newStrategy must support the same kashiPairs or bad things will happen
     function prepareMigration(address _newStrategy) internal override {
-        //kashiPair.transfer(_newStrategy, kashiFraction());
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            kashiPairs[i].transfer(_newStrategy, kashiFraction(i));
+        }
     }
 
     function addKashiPair(address _newKashiPair) external onlyGovernance {
@@ -353,7 +359,20 @@ contract Strategy is BaseStrategy {
         kashiPairs.push(IKashiPair(_newKashiPair));
     }
 
-    function removeKashiPair(address _remKashiPair) external onlyGovernance {}
+    function removeKashiPair(address _remKashiPair) external onlyGovernance {
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            if (_remKashiPair != address(kashiPairs[i])) continue;
+            liquidateKashiPair(
+                kashiPairs[i],
+                wantToBentoShares(estimatedTotalAssets(), true)
+            );
+            kashiPairs[i] = kashiPairs[kashiPairs.length - 1];
+            kashiPairs.pop();
+            return;
+        }
+
+        revert("kashiPair not found");
+    }
 
     function liquidateKashiPair(IKashiPair kashiPair, uint256 sharesToFree)
         internal
@@ -434,7 +453,7 @@ contract Strategy is BaseStrategy {
         Rebase memory totalBorrow = kashiPair.totalBorrow();
         uint256 allShare =
             uint256(totalAsset.elastic).add(
-                wantToBentoShares(totalBorrow.elastic, !roundUp)
+                wantToBentoShares(totalBorrow.elastic, roundUp)
             );
         _kashiFraction = allShare == 0
             ? bentoShares

@@ -45,13 +45,13 @@ def user_2(accounts):
 
 @pytest.fixture(scope="session")
 def token():
-    token_address = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
+    token_address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
     yield Contract(token_address)
 
 
 @pytest.fixture
 def reserve(accounts):
-    yield accounts.at("0x1a13F4Ca1d028320A707D99520AbFefca3998b7F", force=True)
+    yield accounts.at("0x0A59649758aa4d66E25f08Dd01271e891fe52199", force=True)
 
 
 @pytest.fixture(scope="function")
@@ -80,18 +80,23 @@ def amount_2(accounts, reserve, token, user_2):
 
 @pytest.fixture
 def weth():
-    token_address = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+    token_address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     yield Contract(token_address)
 
 
 @pytest.fixture
 def kashi_pair_0():
-    yield Contract("0xe4b3c431E29B15978556f55b2cd046Be614F558D")
+    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")
 
 
 @pytest.fixture
 def kashi_pair_1():
-    yield Contract("0xd51B929792Cfcde30f2619e50E91513dCeC89B23")
+    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")
+
+
+@pytest.fixture
+def kashi_pairs(kashi_pair_0, kashi_pair_1):
+    yield [kashi_pair_0, kashi_pair_1]
 
 
 @pytest.fixture
@@ -118,10 +123,8 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture(scope="function")
-def strategy(
-    strategist, keeper, vault, Strategy, gov, kashi_pair_0, kashi_pair_1, bento_box
-):
-    strategy = strategist.deploy(Strategy, vault, bento_box, [kashi_pair_0])
+def strategy(strategist, keeper, vault, Strategy, gov, kashi_pairs, bento_box):
+    strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs)
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
     yield strategy
