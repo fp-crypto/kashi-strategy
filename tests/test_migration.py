@@ -46,7 +46,7 @@ def test_new_kashi_pair(
     new_kashi_pair = Contract("0x40a12179260997c55619DE3290c5b9918588E791")
 
     strategy.addKashiPair(new_kashi_pair, 0, {"from": gov})
-    assert strategy.kashiPairs(len(kashi_pairs)) == new_kashi_pair.address
+    assert strategy.kashiPairs(len(kashi_pairs))[0] == new_kashi_pair.address
 
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
     strategy.harvest()
@@ -57,7 +57,7 @@ def test_add_existing_kashi_pair(
     token, vault, strategy, amount, gov, user, kashi_pair_0, RELATIVE_APPROX
 ):
     with brownie.reverts():
-        strategy.addKashiPair(kashi_pair_0, {"from": gov})
+        strategy.addKashiPair(kashi_pair_0, 0, {"from": gov})
 
 
 def test_remove_kashi_pair(
@@ -78,7 +78,7 @@ def test_remove_kashi_pair(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     strategy.removeKashiPair(kashi_pair_0, {"from": gov})
-    assert strategy.kashiPairs(0) != kashi_pair_0.address
+    assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
 
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
     strategy.harvest()
