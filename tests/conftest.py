@@ -193,8 +193,17 @@ def collateral_amount(borrower, collateral, collateral_whale, bento_box, kashi_p
         collateral, borrower, kashi_pair_0, collateral_amount, {"from": borrower}
     )
     kashi_pair_0.addCollateral(borrower, True, collateral_amount, {"from": borrower})
-
     yield collateral_amount
+
+
+@pytest.fixture(scope="session")
+def sushi():
+    yield Contract("0x6B3595068778DD592e39A122f4f5a5cF09C90fE2")
+
+
+@pytest.fixture(scope="session")
+def sushi_whale(accounts):
+    yield accounts.at("0x8798249c2e607446efb7ad49ec89dd1865ff4272", force=True)
 
 
 @pytest.fixture(scope="session")
