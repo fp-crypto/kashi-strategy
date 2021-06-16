@@ -180,7 +180,7 @@ def collateral_whale(accounts):
     yield accounts.at("0xF256CC7847E919FAc9B808cC216cAc87CCF2f47a", force=True)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def collateral_amount(borrower, collateral, collateral_whale, bento_box, kashi_pair_0):
     collateral_amount = 10_000_000 * 10 ** collateral.decimals()
     collateral.transfer(borrower, collateral_amount, {"from": collateral_whale})
