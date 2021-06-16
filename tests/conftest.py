@@ -166,5 +166,37 @@ def strategy(strategist, keeper, vault, Strategy, gov, kashi_pairs, bento_box, p
 
 
 @pytest.fixture(scope="session")
+def borrower(accounts):
+    yield accounts[7]
+
+
+@pytest.fixture(scope="session")
+def collateral():
+    yield Contract("0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272")  # xSushi
+
+
+@pytest.fixture(scope="session")
+def collateral_whale(accounts):
+    yield accounts.at("0xF256CC7847E919FAc9B808cC216cAc87CCF2f47a", force=True)
+
+
+@pytest.fixture(scope="function")
+def collateral_amount(borrower, collateral, collateral_whale, bento_box, kashi_pair_0):
+    collateral_amount = 10_000_000 * 10 ** collateral.decimals()
+    collateral.transfer(borrower, collateral_amount, {"from": collateral_whale})
+
+    collateral.approve(bento_box, 2 ** 256 - 1, {"from": borrower})
+    bento_box.deposit(
+        collateral, borrower, borrower, collateral_amount, 0, {"from": borrower}
+    )
+    bento_box.transfer(
+        collateral, borrower, kashi_pair_0, collateral_amount, {"from": borrower}
+    )
+    kashi_pair_0.addCollateral(borrower, True, collateral_amount, {"from": borrower})
+
+    yield collateral_amount
+
+
+@pytest.fixture(scope="session")
 def RELATIVE_APPROX():
     yield 1e-5
