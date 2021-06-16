@@ -40,17 +40,18 @@ contract Strategy is BaseStrategy {
 
     bool internal isOriginal = true;
     uint256 internal constant MAX_PAIRS = 5;
+    address internal constant DEFAULT_SUSHI_ROUTER =
+        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
 
     IBentoBox public bentoBox;
     KashiPairInfo[] public kashiPairs;
+    IUniswapV2Router02 public sushiRouter;
 
     uint256 public dustThreshold = 2;
 
     // Path for swaps
     address[] private path;
 
-    IUniswapV2Router02 private sushiRouter =
-        IUniswapV2Router02(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F);
     IMasterChef private constant masterChef =
         IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
     IERC20 private constant weth =
@@ -137,6 +138,8 @@ contract Strategy is BaseStrategy {
             "kashiPairs and pids must be same length"
         );
 
+        sushiRouter = IUniswapV2Router02(DEFAULT_SUSHI_ROUTER);
+
         bentoBox = IBentoBox(_bentoBox);
 
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
@@ -186,7 +189,7 @@ contract Strategy is BaseStrategy {
             totalShares = totalShares.add(
                 kashiFractionToBentoShares(
                     kashiPairs[i].kashiPair,
-                    kashiFraction(i),
+                    kashiFractionTotal(i),
                     true
                 )
             );
@@ -200,7 +203,7 @@ contract Strategy is BaseStrategy {
             bentoSharesToWant(
                 kashiFractionToBentoShares(
                     kashiPairs[i].kashiPair,
-                    kashiFraction(i),
+                    kashiFractionTotal(i),
                     true
                 ),
                 true
@@ -315,21 +318,26 @@ contract Strategy is BaseStrategy {
 
                 uint256 sharesFreedFromKashi = 0;
 
+                uint256 lowestInterestIndex =
+                    lowestInterestPairIndex(sharesToFreeFromKashi.div(2));
+                if (lowestInterestIndex != type(uint256).max) {
+                    sharesFreedFromKashi = liquidateKashiPair(
+                        lowestInterestIndex,
+                        sharesToFreeFromKashi
+                    );
+                }
+
                 for (
                     uint256 i = 0;
                     i < kashiPairs.length &&
                         sharesToFreeFromKashi > sharesFreedFromKashi;
                     i++
                 ) {
-                    // get the lowest interest pair
-                    uint256 lowestInterestIndex = lowestInterestPairIndex();
-                    if (lowestInterestIndex == type(uint256).max) {
-                        // break if the index is max uint256 indicating no liquidity
-                        break;
-                    }
+                    if (i == lowestInterestIndex) continue; // we already visited this
+
                     sharesFreedFromKashi = sharesFreedFromKashi.add(
                         liquidateKashiPair(
-                            lowestInterestIndex,
+                            i,
                             sharesToFreeFromKashi.sub(sharesFreedFromKashi)
                         )
                     );
@@ -369,7 +377,7 @@ contract Strategy is BaseStrategy {
                 i,
                 kashiFractionToBentoShares(
                     kashiPairs[i].kashiPair,
-                    kashiFraction(i),
+                    kashiFractionTotal(i),
                     true
                 )
             );
@@ -478,7 +486,7 @@ contract Strategy is BaseStrategy {
                 bentoSharesToWant(
                     kashiFractionToBentoShares(
                         kashiPairs[i].kashiPair,
-                        kashiFraction(i),
+                        kashiFractionTotal(i),
                         true
                     ),
                     true
@@ -545,6 +553,11 @@ contract Strategy is BaseStrategy {
             kashiPairs[kashiPairIndex].kashiPair.accrue();
         }
 
+        uint256 liquidShares = kashiPairLiquidShares(kashiPairIndex);
+        if (sharesToFree > liquidShares) {
+            sharesToFree = liquidShares;
+        }
+
         uint256 fractionsToFree =
             bentoSharesToKashiFraction(
                 kashiPairs[kashiPairIndex].kashiPair,
@@ -554,10 +567,7 @@ contract Strategy is BaseStrategy {
 
         // Remove from masterChef if there is a non-zero pid
         if (kashiPairs[kashiPairIndex].pid != 0) {
-            uint256 fractionInMc =
-                masterChef
-                    .userInfo(kashiPairs[kashiPairIndex].pid, address(this))
-                    .amount;
+            uint256 fractionInMc = kashiFactionInMasterChef(kashiPairIndex);
             uint256 fractionsToFreeFromMc = fractionsToFree;
             if (fractionsToFreeFromMc > fractionInMc) {
                 fractionsToFreeFromMc = fractionInMc;
@@ -568,8 +578,7 @@ contract Strategy is BaseStrategy {
             );
         }
 
-        uint256 fractionBalance =
-            kashiPairs[kashiPairIndex].kashiPair.balanceOf(address(this));
+        uint256 fractionBalance = kashiFractionInPair(kashiPairIndex);
 
         if (fractionsToFree > fractionBalance) {
             fractionsToFree = fractionBalance;
@@ -579,6 +588,15 @@ contract Strategy is BaseStrategy {
             address(this),
             fractionsToFree
         );
+
+        // Redeposit into the masterChef if there's some spare change
+        uint256 looseKashiFraction = kashiFractionInPair(kashiPairIndex);
+        if (kashiPairs[kashiPairIndex].pid != 0) {
+            masterChef.deposit(
+                kashiPairs[kashiPairIndex].pid,
+                looseKashiFraction
+            );
+        }
     }
 
     //sell all function
@@ -624,7 +642,11 @@ contract Strategy is BaseStrategy {
         return bentoBox.balanceOf(BIERC20(address(want)), address(this));
     }
 
-    function kashiFraction(uint256 i)
+    function kashiFractionTotal(uint256 i) internal view returns (uint256) {
+        return kashiFactionInMasterChef(i).add(kashiFractionInPair(i));
+    }
+
+    function kashiFactionInMasterChef(uint256 i)
         internal
         view
         returns (uint256 _kashiFraction)
@@ -634,8 +656,14 @@ contract Strategy is BaseStrategy {
                 .userInfo(kashiPairs[i].pid, address(this))
                 .amount;
         }
+    }
 
-        _kashiFraction.add(kashiPairs[i].kashiPair.balanceOf(address(this)));
+    function kashiFractionInPair(uint256 i) internal view returns (uint256) {
+        return kashiPairs[i].kashiPair.balanceOf(address(this));
+    }
+
+    function kashiPairLiquidShares(uint256 i) internal view returns (uint256) {
+        return kashiPairs[i].kashiPair.totalAsset().elastic;
     }
 
     function highestInterestPairIndex()
@@ -655,20 +683,22 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function lowestInterestPairIndex()
+    function lowestInterestPairIndex(uint256 minLiquidShares)
         internal
         view
         returns (uint256 _lowestIndex)
     {
-        uint256 lowestInterest = type(uint256).max;
         _lowestIndex = type(uint256).max; // Max indicate no low APR with liquidity
+        uint256 lowestInterest = type(uint256).max;
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             (uint256 _interestPerBlock, , ) =
                 kashiPairs[i].kashiPair.accrueInfo();
+
             if (
                 _interestPerBlock < lowestInterest &&
-                kashiFraction(i) > dustThreshold
+                kashiFractionTotal(i) > dustThreshold &&
+                kashiPairLiquidShares(i) >= minLiquidShares
             ) {
                 lowestInterest = _interestPerBlock;
                 _lowestIndex = i;
