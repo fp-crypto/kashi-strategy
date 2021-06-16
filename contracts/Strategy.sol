@@ -284,7 +284,7 @@ contract Strategy is BaseStrategy {
 
         if (sharesInBento > wantToBentoShares(dustThreshold, false)) {
             // Get highest interest rate pair
-            (uint256 highestInterestIndex, ) = highestAndLowestInterestPairs();
+            uint256 highestInterestIndex = highestInterestPairIndex();
 
             depositInKashiPair(highestInterestIndex, sharesInBento);
         }
@@ -322,8 +322,7 @@ contract Strategy is BaseStrategy {
                     i++
                 ) {
                     // get the lowest interest pair
-                    (, uint256 lowestInterestIndex) =
-                        highestAndLowestInterestPairs();
+                    uint256 lowestInterestIndex = lowestInterestPairIndex();
                     if (lowestInterestIndex == type(uint256).max) {
                         // break if the index is max uint256 indicating no liquidity
                         break;
@@ -633,14 +632,12 @@ contract Strategy is BaseStrategy {
         _kashiFraction.add(kashiPairs[i].kashiPair.balanceOf(address(this)));
     }
 
-    function highestAndLowestInterestPairs()
+    function highestInterestPairIndex()
         internal
         view
-        returns (uint256 _highestIndex, uint256 _lowestIndex)
+        returns (uint256 _highestIndex)
     {
         uint256 highestInterest = 0;
-        uint256 lowestInterest = type(uint256).max;
-        _lowestIndex = type(uint256).max; // Max indicate no low APR with liquidity
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             (uint256 _interestPerBlock, , ) =
@@ -649,6 +646,20 @@ contract Strategy is BaseStrategy {
                 highestInterest = _interestPerBlock;
                 _highestIndex = i;
             }
+        }
+    }
+
+    function lowestInterestPairIndex()
+        internal
+        view
+        returns (uint256 _lowestIndex)
+    {
+        uint256 lowestInterest = type(uint256).max;
+        _lowestIndex = type(uint256).max; // Max indicate no low APR with liquidity
+
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            (uint256 _interestPerBlock, , ) =
+                kashiPairs[i].kashiPair.accrueInfo();
             if (
                 _interestPerBlock < lowestInterest &&
                 kashiFraction(i) > dustThreshold
