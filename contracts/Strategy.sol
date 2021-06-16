@@ -153,6 +153,12 @@ contract Strategy is BaseStrategy {
             );
 
             if (_pids[i] != 0) {
+                require(
+                    address(masterChef.poolInfo(_pids[i]).lpToken) ==
+                        _kashiPairs[i],
+                    "incorrect pid"
+                );
+
                 IERC20(_kashiPairs[i]).safeApprove(
                     address(masterChef),
                     type(uint256).max
@@ -393,6 +399,12 @@ contract Strategy is BaseStrategy {
             IKashiPair(_newKashiPair).asset() == BIERC20(address(want)),
             "kashiPair asset doesn't match want"
         );
+        if (_newPid != 0) {
+            require(
+                address(masterChef.poolInfo(_newPid).lpToken) == _newKashiPair,
+                "incorrect pid"
+            );
+        }
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             if (_newKashiPair == address(kashiPairs[i].kashiPair)) {
