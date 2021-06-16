@@ -39,7 +39,7 @@ contract Strategy is BaseStrategy {
     }
 
     bool internal isOriginal = true;
-    uint256 internal constant maxPairs = 5;
+    uint256 internal constant MAX_PAIRS = 5;
 
     IBentoBox public bentoBox;
     KashiPairInfo[] public kashiPairs;
@@ -49,7 +49,7 @@ contract Strategy is BaseStrategy {
     // Path for swaps
     address[] private path;
 
-    IUniswapV2Router02 private constant sushiRouter =
+    IUniswapV2Router02 private sushiRouter =
         IUniswapV2Router02(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F);
     IMasterChef private constant masterChef =
         IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
@@ -131,7 +131,7 @@ contract Strategy is BaseStrategy {
             address(bentoBox) == address(0),
             "strategy already initialized"
         );
-        require(_kashiPairs.length <= maxPairs, "exceeded maxPairs");
+        require(_kashiPairs.length <= MAX_PAIRS, "exceeded MAX_PAIRS");
         require(
             _kashiPairs.length == _pids.length,
             "kashiPairs and pids must be same length"
@@ -176,7 +176,7 @@ contract Strategy is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return string(abi.encodePacked("StrategyKashiMultiPairLender"));
+        return "StrategyKashiMultiPairLender";
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
@@ -389,7 +389,7 @@ contract Strategy is BaseStrategy {
         external
         onlyGovernance
     {
-        require(kashiPairs.length < maxPairs, "max pairs reached");
+        require(kashiPairs.length < MAX_PAIRS, "max pairs reached");
         require(
             address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox),
             "bentoBox doesn't match"
@@ -428,9 +428,11 @@ contract Strategy is BaseStrategy {
                 i,
                 wantToBentoShares(estimatedTotalAssets(), true)
             );
+            if (kashiPairs[i].pid != 0) {
+                IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
+            }
             kashiPairs[i] = kashiPairs[kashiPairs.length - 1];
             kashiPairs.pop();
-            IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
             return;
         }
 
@@ -446,7 +448,7 @@ contract Strategy is BaseStrategy {
             "length must match number of kashiPairs"
         );
 
-        uint256 totalRatio = 0;
+        uint256 totalRatio;
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             // We must accrue all pairs to ensure we get an accurate estimate of assets
@@ -604,6 +606,10 @@ contract Strategy is BaseStrategy {
 
     function setPath(address[] calldata _path) public onlyGovernance {
         path = _path;
+    }
+
+    function setRouter(address _router) public onlyGovernance {
+        sushiRouter = IUniswapV2Router02(_router);
     }
 
     function balanceOfWant() internal view returns (uint256) {
