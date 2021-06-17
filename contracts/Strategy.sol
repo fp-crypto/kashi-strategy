@@ -128,15 +128,9 @@ contract Strategy is BaseStrategy {
         address[] memory _kashiPairs,
         uint256[] memory _pids
     ) internal {
-        require(
-            address(bentoBox) == address(0),
-            "strategy already initialized"
-        );
-        require(_kashiPairs.length <= MAX_PAIRS, "exceeded MAX_PAIRS");
-        require(
-            _kashiPairs.length == _pids.length,
-            "kashiPairs and pids must be same length"
-        );
+        require(address(bentoBox) == address(0)); // Check if previously initialized
+        require(_kashiPairs.length <= MAX_PAIRS); // Must not exceed the max length
+        require(_kashiPairs.length == _pids.length); // Pairs length must match pids length
 
         sushiRouter = IUniswapV2Router02(DEFAULT_SUSHI_ROUTER);
 
@@ -146,20 +140,16 @@ contract Strategy is BaseStrategy {
             kashiPairs.push(
                 KashiPairInfo(IKashiPair(_kashiPairs[i]), _pids[i])
             );
-            require(
-                address(kashiPairs[i].kashiPair.bentoBox()) == _bentoBox,
-                "bento does not match"
-            );
-            require(
-                address(kashiPairs[i].kashiPair.asset()) == address(want),
-                "asset does not match want"
-            );
+            // kashiPair must use the right bentoBox
+            require(address(kashiPairs[i].kashiPair.bentoBox()) == _bentoBox);
+            // kashiPair asset must match want
+            require(address(kashiPairs[i].kashiPair.asset()) == address(want));
 
             if (_pids[i] != 0) {
+                // the masterChef pid token must match the kashiPair
                 require(
                     address(masterChef.poolInfo(_pids[i]).lpToken) ==
-                        _kashiPairs[i],
-                    "incorrect pid"
+                        _kashiPairs[i]
                 );
 
                 IERC20(_kashiPairs[i]).safeApprove(
@@ -408,25 +398,24 @@ contract Strategy is BaseStrategy {
         external
         onlyGovernance
     {
-        require(kashiPairs.length < MAX_PAIRS, "max pairs reached");
+        // cannot exceed max pair length
+        require(kashiPairs.length < MAX_PAIRS);
+        // must use the correct bentobox
         require(
-            address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox),
-            "bentoBox doesn't match"
+            address(IKashiPair(_newKashiPair).bentoBox()) == address(bentoBox)
         );
-        require(
-            IKashiPair(_newKashiPair).asset() == BIERC20(address(want)),
-            "kashiPair asset doesn't match want"
-        );
+        // kashPair asset must match want
+        require(IKashiPair(_newKashiPair).asset() == BIERC20(address(want)));
         if (_newPid != 0) {
+            // masterChef pid token must match the kashiPair
             require(
-                address(masterChef.poolInfo(_newPid).lpToken) == _newKashiPair,
-                "incorrect pid"
+                address(masterChef.poolInfo(_newPid).lpToken) == _newKashiPair
             );
         }
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             if (_newKashiPair == address(kashiPairs[i].kashiPair)) {
-                revert("kashiPair already added");
+                revert(); // kashiPair already attached
             }
         }
 
@@ -462,10 +451,8 @@ contract Strategy is BaseStrategy {
         external
         onlyAuthorized
     {
-        require(
-            _ratios.length == kashiPairs.length,
-            "length must match number of kashiPairs"
-        );
+        // length of ratios must match number of pairs
+        require(_ratios.length == kashiPairs.length);
 
         uint256 totalRatio;
 
@@ -475,7 +462,7 @@ contract Strategy is BaseStrategy {
             totalRatio += _ratios[i];
         }
 
-        require(totalRatio == 10_000, "ratios must add to 10000 bps");
+        require(totalRatio == 10_000); //ratios must add to 10000 bps
 
         uint256 wantBalance = balanceOfWant();
         if (wantBalance > dustThreshold) {
