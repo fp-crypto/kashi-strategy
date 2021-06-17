@@ -59,13 +59,14 @@ def test_new_kashi_pair(
 
 
 def test_add_existing_kashi_pair(
-    token, vault, strategy, amount, gov, user, kashi_pair_0, RELATIVE_APPROX
+    chain, token, vault, strategy, amount, gov, user, kashi_pair_0, RELATIVE_APPROX
 ):
     with brownie.reverts():
         strategy.addKashiPair(kashi_pair_0, 0, {"from": gov})
 
 
 def test_remove_kashi_pair(
+    chain,
     token,
     vault,
     strategy,
@@ -94,7 +95,7 @@ def test_remove_kashi_pair(
 
 
 def test_invalid_new_kashi_pair(
-    token, vault, strategy, amount, gov, user, RELATIVE_APPROX
+    chain, token, vault, strategy, amount, gov, user, RELATIVE_APPROX
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
