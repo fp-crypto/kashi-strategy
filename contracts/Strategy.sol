@@ -318,8 +318,19 @@ contract Strategy is BaseStrategy {
 
                 uint256 sharesFreedFromKashi = 0;
 
+                // Find the lowest apr pair with at least the lesser of
+                //   - the amount to free
+                //   - total assets divided by number of pairs
                 uint256 lowestInterestIndex =
-                    lowestInterestPairIndex(sharesToFreeFromKashi.div(2));
+                    lowestInterestPairIndex(
+                        Math.min(
+                            sharesToFreeFromKashi,
+                            wantToBentoShares(
+                                estimatedTotalAssets().div(kashiPairs.length),
+                                true
+                            )
+                        )
+                    );
                 if (lowestInterestIndex != type(uint256).max) {
                     sharesFreedFromKashi = liquidateKashiPair(
                         lowestInterestIndex,
