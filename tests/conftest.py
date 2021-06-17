@@ -10,7 +10,7 @@ def isolation(fn_isolation):
 
 @pytest.fixture(scope="session")
 def gov(accounts):
-    yield accounts.at("0xfB8E20c22f8B58D0BDeAbe62Fb8EE2A56DbD73b2", force=True)
+    yield accounts.at("0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52", force=True)
 
 
 @pytest.fixture(scope="session")
