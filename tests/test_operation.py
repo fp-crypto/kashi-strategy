@@ -179,8 +179,8 @@ def test_multiple_users(
     assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
     # Sleep for a while to earn yield
-    chain.sleep(3600)
-    chain.mine(270)
+    chain.sleep(360)
+    chain.mine(27)
 
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
@@ -262,8 +262,8 @@ def test_multiple_users_and_adjust_ratios(
     assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
     # Sleep for a while to earn yield
-    chain.sleep(3600)
-    chain.mine(270)
+    chain.sleep(360)
+    chain.mine(27)
 
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()

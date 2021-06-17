@@ -3,6 +3,11 @@ from brownie import config
 from brownie import Contract
 
 
+@pytest.fixture(autouse=True)
+def isolation(fn_isolation):
+    pass
+
+
 @pytest.fixture(scope="session")
 def gov(accounts):
     yield accounts.at("0xfB8E20c22f8B58D0BDeAbe62Fb8EE2A56DbD73b2", force=True)
@@ -180,7 +185,7 @@ def collateral_whale(accounts):
     yield accounts.at("0xF256CC7847E919FAc9B808cC216cAc87CCF2f47a", force=True)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def collateral_amount(borrower, collateral, collateral_whale, bento_box, kashi_pair_0):
     collateral_amount = 10_000_000 * 10 ** collateral.decimals()
     collateral.transfer(borrower, collateral_amount, {"from": collateral_whale})

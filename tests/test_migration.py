@@ -35,20 +35,25 @@ def test_migration(
 
 
 def test_new_kashi_pair(
-    token, vault, strategy, amount, gov, user, kashi_pairs, RELATIVE_APPROX
+    chain, token, vault, strategy, amount, gov, user, kashi_pairs, RELATIVE_APPROX
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
     vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     new_kashi_pair = Contract("0x40a12179260997c55619DE3290c5b9918588E791")
-
     strategy.addKashiPair(new_kashi_pair, 0, {"from": gov})
-    assert strategy.kashiPairs(len(kashi_pairs))[0] == new_kashi_pair.address
-
+    assert (
+        strategy.kashiPairs(len(kashi_pairs)).dict()["kashiPair"]
+        == new_kashi_pair.address
+    )
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
@@ -74,13 +79,16 @@ def test_remove_kashi_pair(
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
     vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     strategy.removeKashiPair(kashi_pair_0, {"from": gov})
     assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
-
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
@@ -91,6 +99,8 @@ def test_invalid_new_kashi_pair(
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
     vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
