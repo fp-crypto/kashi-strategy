@@ -269,7 +269,7 @@ contract Strategy is BaseStrategy {
                 address(this),
                 address(this),
                 wantBalance,
-                0 // setting this to 0, let's the previous argument determine the deposit size
+                0 // setting this to 0 lets the previous argument determine the wantBalance size
             );
         }
 
@@ -310,7 +310,7 @@ contract Strategy is BaseStrategy {
 
                 // Find the lowest apr pair with at least the lesser of
                 //   - the amount to free
-                //   - total assets divided by number of pairs
+                //   - the ratio of total assets to number of pairs
                 uint256 lowestInterestIndex =
                     lowestInterestPairIndex(
                         Math.min(
