@@ -371,28 +371,8 @@ contract Strategy is BaseStrategy {
         (_liquidatedAmount, ) = liquidatePosition(type(uint256).max);
     }
 
-    // The _newStrategy must support the same kashiPairs or bad things will happen
-    function prepareMigration(address _newStrategy) internal override {
-        for (uint256 i = 0; i < kashiPairs.length; i++) {
-            liquidateKashiPair(
-                i,
-                kashiFractionToBentoShares(
-                    kashiPairs[i].kashiPair,
-                    kashiFractionTotal(i),
-                    true
-                )
-            );
-        }
-
-        bentoBox.transfer(
-            BIERC20(address(want)),
-            address(this),
-            _newStrategy,
-            sharesInBento()
-        );
-
-        sell();
-    }
+    // We stake in the masterChef so we can't transfer assets when migrating
+    function prepareMigration(address _newStrategy) internal override {}
 
     function addKashiPair(address _newKashiPair, uint256 _newPid)
         external
