@@ -447,7 +447,7 @@ contract Strategy is BaseStrategy {
         revert("kashiPair not found");
     }
 
-    function adjustKashiPairRatios(uint256[] memory _ratios)
+    function adjustKashiPairRatios(uint256[] calldata _ratios)
         external
         onlyAuthorized
     {
@@ -620,11 +620,11 @@ contract Strategy is BaseStrategy {
         dustThreshold = _newDustThreshold;
     }
 
-    function setPath(address[] calldata _path) public onlyGovernance {
+    function setPath(address[] calldata _path) external onlyGovernance {
         path = _path;
     }
 
-    function setRouter(address _router) public onlyGovernance {
+    function setRouter(address _router) external onlyGovernance {
         sushiRouter = IUniswapV2Router02(_router);
     }
 
