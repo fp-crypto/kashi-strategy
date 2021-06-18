@@ -111,7 +111,7 @@ def test_adjust_ratios(
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
     strategy.harvest()
-    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
+    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount
@@ -122,7 +122,6 @@ def test_adjust_ratios(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
-    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
 
 def test_multiple_users(

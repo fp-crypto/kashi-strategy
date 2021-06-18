@@ -199,7 +199,7 @@ def test_borrow_set_ratios(
     borrow_all(kashi_pair_0, borrower)
 
     strategy.adjustKashiPairRatios([2500, 2500, 2500, 2500], {"from": strategist})
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+    assert strategy.estimatedTotalAssets() >= amount
 
     repay(kashi_pair_0, token, borrower)
 
