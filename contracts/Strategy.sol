@@ -394,9 +394,8 @@ contract Strategy is BaseStrategy {
         }
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            if (_newKashiPair == address(kashiPairs[i].kashiPair)) {
-                revert(); // kashiPair already attached
-            }
+            // kashiPair must not already be attached
+            require(_newKashiPair != address(kashiPairs[i].kashiPair));
         }
 
         kashiPairs.push(KashiPairInfo(IKashiPair(_newKashiPair), _newPid));
@@ -409,7 +408,10 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function removeKashiPair(address _remKashiPair) external onlyGovernance {
+    function removeKashiPair(address _remKashiPair)
+        external
+        onlyEmergencyAuthorized
+    {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             if (_remKashiPair != address(kashiPairs[i].kashiPair)) continue;
             liquidateKashiPair(
