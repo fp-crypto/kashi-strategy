@@ -213,11 +213,8 @@ contract Strategy is BaseStrategy {
         )
     {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (, uint256 lastAccrued, ) = kashiPairs[i].kashiPair.accrueInfo();
-            // Accure interest
-            if (block.timestamp > lastAccrued) {
-                kashiPairs[i].kashiPair.accrue();
-            }
+            accrueInterest(i);
+
             // Claim masterchef rewards
             if (kashiPairs[i].pid != 0) {
                 masterChef.deposit(kashiPairs[i].pid, 0);
@@ -441,7 +438,7 @@ contract Strategy is BaseStrategy {
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             // We must accrue all pairs to ensure we get an accurate estimate of assets
-            kashiPairs[i].kashiPair.accrue();
+            accrueInterest(i);
             totalRatio += _ratios[i];
         }
 
@@ -527,12 +524,8 @@ contract Strategy is BaseStrategy {
         internal
         returns (uint256 _shareLiquidated)
     {
-        (, uint256 lastAccrued, ) =
-            kashiPairs[kashiPairIndex].kashiPair.accrueInfo();
-        if (block.timestamp > lastAccrued) {
-            // We need to call accrue to accurately calculate totalAssets
-            kashiPairs[kashiPairIndex].kashiPair.accrue();
-        }
+        // We need to call accrue to accurately calculate totalAssets
+        accrueInterest(kashiPairIndex);
 
         uint256 liquidShares = kashiPairLiquidShares(kashiPairIndex);
         if (sharesToFree > liquidShares) {
@@ -580,7 +573,7 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    //sell all function
+    // sell all function
     function sell() internal {
         uint256 sushiBal = balanceOfSushi();
         if (sushiBal == 0) {
@@ -594,6 +587,15 @@ contract Strategy is BaseStrategy {
             address(this),
             now
         );
+    }
+
+    function accrueInterest(uint256 kashiPairIndex) internal {
+        (, uint256 lastAccrued, ) =
+            kashiPairs[kashiPairIndex].kashiPair.accrueInfo();
+        // Accure interest
+        if (block.timestamp > lastAccrued) {
+            kashiPairs[kashiPairIndex].kashiPair.accrue();
+        }
     }
 
     function setDustThreshold(uint256 _newDustThreshold)
