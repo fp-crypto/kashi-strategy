@@ -40,8 +40,17 @@ contract Strategy is BaseStrategy {
 
     bool internal isOriginal = true;
     uint256 internal constant MAX_PAIRS = 5;
+    uint256 internal constant MAX_BPS = 10_000;
+
     address internal constant DEFAULT_SUSHI_ROUTER =
         0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+
+    IERC20 internal constant weth =
+        IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IERC20 internal constant sushi =
+        IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
+    IMasterChef internal constant masterChef =
+        IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
 
     IBentoBox public bentoBox;
     KashiPairInfo[] public kashiPairs;
@@ -51,13 +60,6 @@ contract Strategy is BaseStrategy {
 
     // Path for swaps
     address[] private path;
-
-    IMasterChef private constant masterChef =
-        IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
-    IERC20 private constant weth =
-        IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 private constant sushi =
-        IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
 
     constructor(
         address _vault,
@@ -163,9 +165,10 @@ contract Strategy is BaseStrategy {
         sushi.safeApprove(address(sushiRouter), type(uint256).max);
 
         // Initialize the swap path
-        path = new address[](2);
+        path = new address[](3);
         path[0] = address(sushi);
-        path[1] = address(want);
+        path[1] = address(weth);
+        path[2] = address(want);
     }
 
     function name() external view override returns (string memory) {
@@ -442,7 +445,7 @@ contract Strategy is BaseStrategy {
             totalRatio += _ratios[i];
         }
 
-        require(totalRatio == 10_000); //ratios must add to 10000 bps
+        require(totalRatio == MAX_BPS); //ratios must add to 10000 bps
 
         uint256 wantBalance = balanceOfWant();
         if (wantBalance > dustThreshold) {
@@ -469,7 +472,7 @@ contract Strategy is BaseStrategy {
                     ),
                     true
                 );
-            uint256 targetAssets = (_ratios[i] * totalAssets) / 10**4;
+            uint256 targetAssets = (_ratios[i] * totalAssets) / MAX_BPS;
             if (targetAssets < pairTotalAssets) {
                 uint256 toLiquidate = pairTotalAssets.sub(targetAssets);
                 liquidateKashiPair(i, wantToBentoShares(toLiquidate, true));
@@ -522,7 +525,7 @@ contract Strategy is BaseStrategy {
 
     function liquidateKashiPair(uint256 kashiPairIndex, uint256 sharesToFree)
         internal
-        returns (uint256 _shareLiquiduated)
+        returns (uint256 _shareLiquidated)
     {
         (, uint256 lastAccrued, ) =
             kashiPairs[kashiPairIndex].kashiPair.accrueInfo();
@@ -562,7 +565,7 @@ contract Strategy is BaseStrategy {
             fractionsToFree = fractionBalance;
         }
 
-        _shareLiquiduated = kashiPairs[kashiPairIndex].kashiPair.removeAsset(
+        _shareLiquidated = kashiPairs[kashiPairIndex].kashiPair.removeAsset(
             address(this),
             fractionsToFree
         );
