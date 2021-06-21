@@ -193,7 +193,7 @@ def test_multiple_users(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
-    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
+    assert before_pps <= vault.pricePerShare()
 
 
 def test_multiple_users_and_adjust_ratios(

@@ -40,10 +40,15 @@ contract Strategy is BaseStrategy {
 
     bool internal isOriginal = true;
     uint256 internal constant MAX_PAIRS = 5;
-    uint256 internal constant MAX_BPS = 10_000;
+    uint256 internal constant MAX_BPS = 1e4;
 
     address internal constant DEFAULT_SUSHI_ROUTER =
         0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+
+    // Kashi constants (apply to MediumRiskPairs)
+    uint256 constant KASHI_MINIMUM_TARGET_UTILIZATION = 7e17; // 70%
+    uint256 constant KASHI_MAXIMUM_TARGET_UTILIZATION = 8e17; // 80%
+    uint256 constant KASHI_UTILIZATION_PRECISION = 1e18;
 
     IERC20 internal constant weth =
         IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -277,7 +282,8 @@ contract Strategy is BaseStrategy {
 
         if (sharesInBento > wantToBentoShares(dustThreshold, false)) {
             // Get highest interest rate pair
-            uint256 highestInterestIndex = highestInterestPairIndex();
+            uint256 highestInterestIndex =
+                highestInterestPairIndex(sharesInBento);
 
             depositInKashiPair(highestInterestIndex, sharesInBento);
         }
@@ -651,18 +657,40 @@ contract Strategy is BaseStrategy {
         return kashiPairs[i].kashiPair.totalAsset().elastic;
     }
 
-    function highestInterestPairIndex()
+    // highestInterestIndex finds the best pair to invest the given deposit
+    function highestInterestPairIndex(uint256 sharesToDeposit)
         internal
         view
         returns (uint256 _highestIndex)
     {
         uint256 highestInterest = 0;
+        uint256 highestUtilization = 0;
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (uint256 _interestPerBlock, , ) =
+            (uint256 interestPerBlock, , ) =
                 kashiPairs[i].kashiPair.accrueInfo();
-            if (_interestPerBlock > highestInterest) {
-                highestInterest = _interestPerBlock;
+
+            uint256 utilization =
+                kashiPairUtilization(kashiPairs[i].kashiPair, sharesToDeposit);
+
+            // A pair is highest (really best) if either
+            //   - It's utilization is higher, and either
+            //     - It is above the max target util
+            //     - The existing choice is below in the min util target
+            //   - Compare APR directly only if both are between the min and max
+            if (
+                (utilization > highestUtilization &&
+                    (utilization > KASHI_MAXIMUM_TARGET_UTILIZATION ||
+                        highestUtilization <
+                        KASHI_MINIMUM_TARGET_UTILIZATION)) ||
+                (interestPerBlock > highestInterest &&
+                    utilization < KASHI_MAXIMUM_TARGET_UTILIZATION &&
+                    utilization > KASHI_MINIMUM_TARGET_UTILIZATION &&
+                    highestUtilization < KASHI_MAXIMUM_TARGET_UTILIZATION &&
+                    highestUtilization > KASHI_MINIMUM_TARGET_UTILIZATION)
+            ) {
+                highestInterest = interestPerBlock;
+                highestUtilization = utilization;
                 _highestIndex = i;
             }
         }
@@ -675,20 +703,55 @@ contract Strategy is BaseStrategy {
     {
         _lowestIndex = type(uint256).max; // Max indicate no low APR with liquidity
         uint256 lowestInterest = type(uint256).max;
+        uint256 lowestUtilization = KASHI_UTILIZATION_PRECISION;
 
         for (uint256 i = 0; i < kashiPairs.length; i++) {
-            (uint256 _interestPerBlock, , ) =
+            (uint256 interestPerBlock, , ) =
                 kashiPairs[i].kashiPair.accrueInfo();
 
+            uint256 utilization =
+                kashiPairUtilization(kashiPairs[i].kashiPair, 0);
+
+            // A pair is lowest if either
+            //   - It's utilization is lower, and either
+            //     - It is below in the min util target
+            //     - The exist choice is above the max target util
+            //   - Compare APR directly only if both are between the min and max
             if (
-                _interestPerBlock < lowestInterest &&
+                ((utilization < lowestUtilization &&
+                    (lowestUtilization > KASHI_MAXIMUM_TARGET_UTILIZATION ||
+                        utilization < KASHI_MINIMUM_TARGET_UTILIZATION)) ||
+                    (interestPerBlock < lowestInterest &&
+                        utilization < KASHI_MAXIMUM_TARGET_UTILIZATION &&
+                        utilization > KASHI_MINIMUM_TARGET_UTILIZATION &&
+                        lowestUtilization < KASHI_MAXIMUM_TARGET_UTILIZATION &&
+                        lowestUtilization >
+                        KASHI_MINIMUM_TARGET_UTILIZATION)) &&
                 kashiFractionTotal(i) > dustThreshold &&
                 kashiPairLiquidShares(i) >= minLiquidShares
             ) {
-                lowestInterest = _interestPerBlock;
+                lowestInterest = interestPerBlock;
                 _lowestIndex = i;
             }
         }
+    }
+
+    function kashiPairUtilization(IKashiPair kashiPair, uint256 sharesToDeposit)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 totalAssetShares = kashiPair.totalAsset().elastic;
+        uint256 totalBorrowAmount = kashiPair.totalBorrow().elastic;
+        uint256 fullAssetAmount =
+            bentoSharesToWant(totalAssetShares.add(sharesToDeposit), false).add(
+                totalBorrowAmount
+            );
+
+        return
+            uint256(totalBorrowAmount).mul(KASHI_UTILIZATION_PRECISION).div(
+                fullAssetAmount
+            );
     }
 
     function wantToBentoShares(uint256 wantAmount, bool roundUp)
