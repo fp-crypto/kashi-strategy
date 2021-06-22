@@ -540,6 +540,8 @@ contract Strategy is BaseStrategy {
             sharesToFree = liquidShares;
         }
 
+        if (sharesToFree == 0) return 0;
+
         uint256 fractionsToFree =
             bentoSharesToKashiFraction(
                 kashiPairs[kashiPairIndex].kashiPair,
@@ -676,7 +678,7 @@ contract Strategy is BaseStrategy {
             // A pair is highest (really best) if either
             //   - It's utilization is higher, and either
             //     - It is above the max target util
-            //     - The existing choice is below in the min util target
+            //     - The existing choice is below the min util target
             //   - Compare APR directly only if both are between the min and max
             if (
                 (utilization > highestUtilization &&
@@ -714,8 +716,8 @@ contract Strategy is BaseStrategy {
 
             // A pair is lowest if either
             //   - It's utilization is lower, and either
-            //     - It is below in the min util target
-            //     - The exist choice is above the max target util
+            //     - It is below the min taget util
+            //     - The existing choice is above the max target util
             //   - Compare APR directly only if both are between the min and max
             if (
                 ((utilization < lowestUtilization &&
