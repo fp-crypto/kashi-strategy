@@ -81,8 +81,8 @@ def test_borrow_all_with_mixed_distribution(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     # Sleep for a while to earn yield
-    chain.sleep(360)
-    chain.mine(27)
+    chain.sleep(360*2)
+    chain.mine(27*2)
 
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
