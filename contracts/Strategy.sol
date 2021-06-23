@@ -220,9 +220,9 @@ contract Strategy is BaseStrategy {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             accrueInterest(i);
 
-            // Claim masterchef rewards
+            // Claim masterchef rewards and deposit any loose tokens
             if (kashiPairs[i].pid != 0) {
-                masterChef.deposit(kashiPairs[i].pid, 0);
+                masterChef.deposit(kashiPairs[i].pid, kashiFractionInPair(i));
             }
         }
 
@@ -378,7 +378,31 @@ contract Strategy is BaseStrategy {
     }
 
     // We stake in the masterChef so we can't transfer assets when migrating
-    function prepareMigration(address _newStrategy) internal override {}
+    function prepareMigration(address _newStrategy) internal override {
+        for (uint256 i = 0; i < kashiPairs.length; i++) {
+            if (kashiPairs[i].pid != 0) {
+                masterChef.withdraw(
+                    kashiPairs[i].pid,
+                    kashiFactionInMasterChef(i)
+                );
+            }
+
+            kashiPairs[i].kashiPair.transfer(
+                _newStrategy,
+                kashiFractionInPair(i)
+            );
+        }
+
+        // Transfer any loose funds in bento
+        bentoBox.transfer(
+            BIERC20(address(want)),
+            address(this),
+            _newStrategy,
+            sharesInBento()
+        );
+
+        sell();
+    }
 
     function addKashiPair(address _newKashiPair, uint256 _newPid)
         external
