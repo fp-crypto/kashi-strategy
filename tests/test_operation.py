@@ -333,6 +333,17 @@ def test_sweep(gov, vault, strategy, token, user, amount, weth, weth_amout):
     assert weth.balanceOf(gov) == weth_amout + before_balance
 
 
+def test_name(gov, strategy):
+    assert strategy.name() == "StrategyKashiMultiPairLender"
+
+    name = "NewStrategyName"
+    strategy.setStrategyName(name)
+    assert strategy.name() == name
+
+    strategy.setStrategyName("")
+    assert strategy.name() == "StrategyKashiMultiPairLender"
+
+
 def kashi_pair_in_want(kashi_pair, account):
     kashi_fraction = kashi_pair.balanceOf(account)
     bento_box = Contract(kashi_pair.bentoBox())

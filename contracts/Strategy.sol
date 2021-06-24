@@ -66,6 +66,8 @@ contract Strategy is BaseStrategy {
     // Path for swaps
     address[] private path;
 
+    string private strategyName;
+
     constructor(
         address _vault,
         address _bentoBox,
@@ -177,7 +179,10 @@ contract Strategy is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyKashiMultiPairLender";
+        return
+            bytes(strategyName).length == 0
+                ? "StrategyKashiMultiPairLender"
+                : strategyName;
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
@@ -645,6 +650,10 @@ contract Strategy is BaseStrategy {
 
     function setRouter(address _router) external onlyGovernance {
         sushiRouter = IUniswapV2Router02(_router);
+    }
+
+    function setStrategyName(string calldata _name) external onlyAuthorized {
+        strategyName = _name;
     }
 
     function balanceOfWant() internal view returns (uint256) {
