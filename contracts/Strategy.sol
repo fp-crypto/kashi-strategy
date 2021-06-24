@@ -224,11 +224,7 @@ contract Strategy is BaseStrategy {
     {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             accrueInterest(i);
-
-            // Claim masterchef rewards and deposit any loose tokens
-            if (kashiPairs[i].pid != 0) {
-                masterChef.deposit(kashiPairs[i].pid, kashiFractionInPair(i));
-            }
+            depositKashiInMasterChef(i); // claim and deposit loose
         }
 
         sell();
@@ -274,13 +270,7 @@ contract Strategy is BaseStrategy {
         uint256 shares = 0;
 
         if (wantBalance > dustThreshold) {
-            (, shares) = bentoBox.deposit(
-                BIERC20(address(want)),
-                address(this),
-                address(this),
-                wantBalance,
-                0 // setting this to 0 lets the previous argument determine the wantBalance size
-            );
+            (, shares) = depositInBento(wantBalance);
         }
 
         uint256 sharesInBento = sharesInBento();
@@ -321,7 +311,7 @@ contract Strategy is BaseStrategy {
 
                 // Find the lowest apr pair with at least the lesser of
                 //   - the amount to free
-                //   - the ratio of total assets to number of pairs
+                //   - the mean assets per pair
                 uint256 lowestInterestIndex =
                     lowestInterestPairIndex(
                         Math.min(
@@ -399,12 +389,7 @@ contract Strategy is BaseStrategy {
         }
 
         // Transfer any loose funds in bento
-        bentoBox.transfer(
-            BIERC20(address(want)),
-            address(this),
-            _newStrategy,
-            sharesInBento()
-        );
+        transferBento(_newStrategy, sharesInBento());
 
         sell();
     }
@@ -483,13 +468,7 @@ contract Strategy is BaseStrategy {
 
         uint256 wantBalance = balanceOfWant();
         if (wantBalance > dustThreshold) {
-            bentoBox.deposit(
-                BIERC20(address(want)),
-                address(this),
-                address(this),
-                wantBalance,
-                0 // setting this to 0, let's the previous argument determine the deposit size
-            );
+            depositInBento(wantBalance);
         }
 
         uint256 totalAssets = estimatedTotalAssets();
@@ -535,9 +514,7 @@ contract Strategy is BaseStrategy {
     function depositInKashiPair(uint256 kashiPairIndex, uint256 sharesToDeposit)
         internal
     {
-        bentoBox.transfer(
-            BIERC20(address(want)),
-            address(this),
+        transferBento(
             address(kashiPairs[kashiPairIndex].kashiPair),
             sharesToDeposit
         );
@@ -549,12 +526,38 @@ contract Strategy is BaseStrategy {
                 sharesToDeposit
             );
 
-        if (kashiPairs[kashiPairIndex].pid != 0) {
-            masterChef.deposit(
-                kashiPairs[kashiPairIndex].pid,
-                depositedFraction
+        depositKashiInMasterChef(kashiPairIndex);
+    }
+
+    function depositKashiInMasterChef(uint256 kashiPairIndex) internal {
+        if (kashiPairs[kashiPairIndex].pid == 0) return;
+        masterChef.deposit(
+            kashiPairs[kashiPairIndex].pid,
+            kashiFractionInPair(kashiPairIndex)
+        );
+    }
+
+    function depositInBento(uint256 wantToDeposit)
+        internal
+        returns (uint256 amountOut, uint256 shareOut)
+    {
+        return
+            bentoBox.deposit(
+                BIERC20(address(want)),
+                address(this),
+                address(this),
+                wantToDeposit,
+                0
             );
-        }
+    }
+
+    function transferBento(address to, uint256 shares) internal {
+        bentoBox.transfer(
+            BIERC20(address(want)),
+            address(this),
+            address(to),
+            shares
+        );
     }
 
     function liquidateKashiPair(uint256 kashiPairIndex, uint256 sharesToFree)
@@ -603,13 +606,7 @@ contract Strategy is BaseStrategy {
         );
 
         // Redeposit into the masterChef if there's some spare change
-        uint256 looseKashiFraction = kashiFractionInPair(kashiPairIndex);
-        if (kashiPairs[kashiPairIndex].pid != 0) {
-            masterChef.deposit(
-                kashiPairs[kashiPairIndex].pid,
-                looseKashiFraction
-            );
-        }
+        depositKashiInMasterChef(kashiPairIndex);
     }
 
     // sell all function
