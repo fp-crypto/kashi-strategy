@@ -40,7 +40,7 @@ def test_borrow_all_withdraw(
     chain.mine(1)
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount
-    assert vault.pricePerShare() > before_pps
+    assert vault.pricePerShare() >= before_pps
 
     borrow_all(kashi_pair_0, borrower)
 
@@ -91,7 +91,7 @@ def test_borrow_all_with_mixed_distribution(
     chain.mine(1)
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount
-    assert vault.pricePerShare() > before_pps
+    assert vault.pricePerShare() >= before_pps
 
     strategy.adjustKashiPairRatios([5000, 5000, 0, 0], {"from": strategist})
 
@@ -150,7 +150,7 @@ def test_borrow_all_harvest(
     chain.mine(1)
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount
-    assert vault.pricePerShare() > before_pps
+    assert vault.pricePerShare() >= before_pps
 
     borrow_all(kashi_pair_0, borrower)
 
@@ -272,7 +272,7 @@ def test_multiple_users_and_part_borrowed(
     strategy.harvest()
     chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
     chain.mine(1)
-    assert vault.pricePerShare() > before_pps
+    assert vault.pricePerShare() >= before_pps
 
     repay(kashi_pair_0, token, borrower)
 

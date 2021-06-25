@@ -91,41 +91,51 @@ def weth():
 
 @pytest.fixture(scope="session")
 def kashi_pair_0():
-    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")  # pid 247
+    yield Contract("0xB7b45754167d65347C93F3B28797887b4b6cd2F3")  # pid 191
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_1():
-    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")  # pid 198
+    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")  # pid 247
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_2():
-    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")  # pid 225
+    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")  # pid 198
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_3():
+    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")  # pid 225
+
+
+@pytest.fixture(scope="session")
+def kashi_pair_4():
     yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")  # pid 222
 
 
 @pytest.fixture(scope="session")
 def pid_0():
-    yield 247
+    yield 191
 
 
 @pytest.fixture(scope="session")
 def pid_1():
-    yield 198
+    yield 247
 
 
 @pytest.fixture(scope="session")
 def pid_2():
-    yield 225
+    yield 198
 
 
 @pytest.fixture(scope="session")
 def pid_3():
+    yield 225
+
+
+@pytest.fixture(scope="session")
+def pid_4():
     yield 222
 
 
@@ -177,17 +187,17 @@ def borrower(accounts):
 
 @pytest.fixture(scope="session")
 def collateral():
-    yield Contract("0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272")  # xSushi
+    yield Contract("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")  # xSushi
 
 
 @pytest.fixture(scope="session")
 def collateral_whale(accounts):
-    yield accounts.at("0xF256CC7847E919FAc9B808cC216cAc87CCF2f47a", force=True)
+    yield accounts.at("0x2F0b23f53734252Bda2277357e97e1517d6B042A", force=True)
 
 
 @pytest.fixture(scope="function")
 def collateral_amount(borrower, collateral, collateral_whale, bento_box, kashi_pair_0):
-    collateral_amount = 10_000_000 * 10 ** collateral.decimals()
+    collateral_amount = 1_000_000 * 10 ** collateral.decimals()
     collateral.transfer(borrower, collateral_amount, {"from": collateral_whale})
 
     collateral.approve(bento_box, 2 ** 256 - 1, {"from": borrower})

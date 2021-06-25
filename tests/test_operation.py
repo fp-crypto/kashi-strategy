@@ -58,8 +58,8 @@ def test_profitable_harvest(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     # Sleep for a while to earn yield
-    chain.sleep(3600)
-    chain.mine(270)
+    chain.sleep(3600 * 2)
+    chain.mine(270 * 2)
 
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()

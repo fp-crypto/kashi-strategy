@@ -244,14 +244,13 @@ contract Strategy is BaseStrategy {
         uint256 amountToFree = _debtPayment.add(_profit);
 
         if (amountToFree > 0 && wantBal < amountToFree) {
-            liquidatePosition(amountToFree.sub(wantBal));
-
-            uint256 newLoose = balanceOfWant();
+            (uint256 newLoose, ) = liquidatePosition(amountToFree.sub(wantBal));
 
             // if we didnt free enough money, prioritize paying down debt before taking profit
             if (newLoose < amountToFree) {
                 if (newLoose <= _debtPayment) {
                     _profit = 0;
+                    _loss += _debtPayment.sub(newLoose);
                     _debtPayment = newLoose;
                 } else {
                     _profit = newLoose.sub(_debtPayment);
@@ -372,7 +371,7 @@ contract Strategy is BaseStrategy {
         (_liquidatedAmount, ) = liquidatePosition(type(uint256).max);
     }
 
-    // We stake in the masterChef so we can't transfer assets when migrating
+    // new strategy **must** have the same kashiPairs attached
     function prepareMigration(address _newStrategy) internal override {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             if (kashiPairs[i].pid != 0) {
@@ -526,10 +525,15 @@ contract Strategy is BaseStrategy {
 
     function depositKashiInMasterChef(uint256 kashiPairIndex) internal {
         if (kashiPairs[kashiPairIndex].pid == 0) return;
-        masterChef.deposit(
-            kashiPairs[kashiPairIndex].pid,
-            kashiFractionInPair(kashiPairIndex)
-        );
+
+        uint256 fractionsToStake = kashiFractionInPair(kashiPairIndex);
+
+        if (fractionsToStake > dustThreshold) {
+            masterChef.deposit(
+                kashiPairs[kashiPairIndex].pid,
+                fractionsToStake
+            );
+        }
     }
 
     function depositInBento(uint256 wantToDeposit)
