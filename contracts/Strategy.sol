@@ -387,11 +387,6 @@ contract Strategy is BaseStrategy {
                 kashiFractionInPair(i)
             );
         }
-
-        // Transfer any loose funds in bento
-        transferBento(_newStrategy, sharesInBento());
-
-        sell();
     }
 
     function addKashiPair(address _newKashiPair, uint256 _newPid)
