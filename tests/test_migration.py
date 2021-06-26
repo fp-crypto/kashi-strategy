@@ -26,12 +26,16 @@ def test_migration(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     # migrate to a new strategy
-    new_strategy = strategist.deploy(Strategy, vault, bento_box, kashi_pairs, pids)
+    name = "NewStrat"
+    new_strategy = strategist.deploy(
+        Strategy, vault, bento_box, kashi_pairs, pids, name
+    )
     vault.migrateStrategy(strategy, new_strategy, {"from": gov})
     assert (
         pytest.approx(new_strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX)
         == amount
     )
+    assert new_strategy.name() == name
 
 
 def test_new_kashi_pair(

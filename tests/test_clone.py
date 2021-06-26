@@ -29,6 +29,7 @@ def test_clone(
             bento_box,
             kashi_pairs,
             pids,
+            "",
             {"from": gov},
         )
 
@@ -41,6 +42,7 @@ def test_clone(
         bento_box,
         kashi_pairs,
         pids,
+        "",
         {"from": gov},
     )
     new_strategy = Strategy.at(tx.return_value)
@@ -55,6 +57,7 @@ def test_clone(
             bento_box,
             kashi_pairs,
             pids,
+            "",
             {"from": gov},
         )
 

@@ -6,6 +6,8 @@ import pytest
 def test_operation(
     chain, accounts, token, vault, strategy, user, strategist, amount, RELATIVE_APPROX
 ):
+    assert strategy.name() == "StrategyKashiMultiPairLender"
+
     # Deposit to the vault
     user_balance_before = token.balanceOf(user)
     token.approve(vault.address, amount, {"from": user})
@@ -331,17 +333,6 @@ def test_sweep(gov, vault, strategy, token, user, amount, weth, weth_amout):
     assert weth.balanceOf(user) == 0
     strategy.sweep(weth, {"from": gov})
     assert weth.balanceOf(gov) == weth_amout + before_balance
-
-
-def test_name(gov, strategy):
-    assert strategy.name() == "StrategyKashiMultiPairLender"
-
-    name = "NewStrategyName"
-    strategy.setStrategyName(name)
-    assert strategy.name() == name
-
-    strategy.setStrategyName("")
-    assert strategy.name() == "StrategyKashiMultiPairLender"
 
 
 def kashi_pair_in_want(kashi_pair, account):

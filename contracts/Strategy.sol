@@ -72,9 +72,10 @@ contract Strategy is BaseStrategy {
         address _vault,
         address _bentoBox,
         address[] memory _kashiPairs,
-        uint256[] memory _pids
+        uint256[] memory _pids,
+        string memory _strategyName
     ) public BaseStrategy(_vault) {
-        _initializeStrat(_bentoBox, _kashiPairs, _pids);
+        _initializeStrat(_bentoBox, _kashiPairs, _pids, _strategyName);
     }
 
     function initialize(
@@ -84,10 +85,11 @@ contract Strategy is BaseStrategy {
         address _keeper,
         address _bentoBox,
         address[] memory _kashiPairs,
-        uint256[] memory _pids
+        uint256[] memory _pids,
+        string memory _strategyName
     ) public {
         _initialize(_vault, _strategist, _rewards, _keeper);
-        _initializeStrat(_bentoBox, _kashiPairs, _pids);
+        _initializeStrat(_bentoBox, _kashiPairs, _pids, _strategyName);
     }
 
     event Cloned(address indexed clone);
@@ -99,7 +101,8 @@ contract Strategy is BaseStrategy {
         address _keeper,
         address _bentoBox,
         address[] memory _kashiPairs,
-        uint256[] memory _pids
+        uint256[] memory _pids,
+        string memory _strategyName
     ) external returns (address newStrategy) {
         require(isOriginal);
         // Copied from https://github.com/optionality/clone-factory/blob/master/contracts/CloneFactory.sol
@@ -126,7 +129,8 @@ contract Strategy is BaseStrategy {
             _keeper,
             _bentoBox,
             _kashiPairs,
-            _pids
+            _pids,
+            _strategyName
         );
 
         emit Cloned(newStrategy);
@@ -135,11 +139,16 @@ contract Strategy is BaseStrategy {
     function _initializeStrat(
         address _bentoBox,
         address[] memory _kashiPairs,
-        uint256[] memory _pids
+        uint256[] memory _pids,
+        string memory _strategyName
     ) internal {
         require(address(bentoBox) == address(0)); // Check if previously initialized
         require(_kashiPairs.length <= MAX_PAIRS); // Must not exceed the max length
         require(_kashiPairs.length == _pids.length); // Pairs length must match pids length
+
+        strategyName = bytes(_strategyName).length == 0
+            ? "StrategyKashiMultiPairLender"
+            : _strategyName;
 
         sushiRouter = IUniswapV2Router02(DEFAULT_SUSHI_ROUTER);
 
@@ -179,10 +188,7 @@ contract Strategy is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return
-            bytes(strategyName).length == 0
-                ? "StrategyKashiMultiPairLender"
-                : strategyName;
+        return strategyName;
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
@@ -664,10 +670,6 @@ contract Strategy is BaseStrategy {
 
     function setRouter(address _router) external onlyGovernance {
         sushiRouter = IUniswapV2Router02(_router);
-    }
-
-    function setStrategyName(string calldata _name) external onlyAuthorized {
-        strategyName = _name;
     }
 
     function balanceOfWant() internal view returns (uint256) {
