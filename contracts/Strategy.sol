@@ -192,13 +192,12 @@ contract Strategy is BaseStrategy {
             totalShares = totalShares.add(
                 kashiFractionToBentoShares(
                     kashiPairs[i].kashiPair,
-                    kashiFractionTotal(i),
-                    true
+                    kashiFractionTotal(i)
                 )
             );
         }
 
-        return balanceOfWant().add(bentoSharesToWant(totalShares, true));
+        return balanceOfWant().add(bentoSharesToWant(totalShares));
     }
 
     function kashiPairEstimatedAssets(uint256 i) public view returns (uint256) {
@@ -206,10 +205,8 @@ contract Strategy is BaseStrategy {
             bentoSharesToWant(
                 kashiFractionToBentoShares(
                     kashiPairs[i].kashiPair,
-                    kashiFractionTotal(i),
-                    true
-                ),
-                true
+                    kashiFractionTotal(i)
+                )
             );
     }
 
@@ -274,7 +271,7 @@ contract Strategy is BaseStrategy {
 
         uint256 sharesInBento = sharesInBento();
 
-        if (sharesInBento > wantToBentoShares(dustThreshold, false)) {
+        if (sharesInBento > wantToBentoShares(dustThreshold)) {
             // Get highest interest rate pair
             uint256 highestInterestIndex =
                 highestInterestPairIndex(sharesInBento);
@@ -298,7 +295,7 @@ contract Strategy is BaseStrategy {
                 amountToFree = deposited;
             }
             if (amountToFree > 0) {
-                uint256 sharesNeeded = wantToBentoShares(amountToFree, true);
+                uint256 sharesNeeded = wantToBentoShares(amountToFree);
                 uint256 bentoShares = sharesInBento();
 
                 uint256 sharesToFreeFromKashi =
@@ -316,8 +313,7 @@ contract Strategy is BaseStrategy {
                         Math.min(
                             sharesToFreeFromKashi,
                             wantToBentoShares(
-                                estimatedTotalAssets().div(kashiPairs.length),
-                                true
+                                estimatedTotalAssets().div(kashiPairs.length)
                             )
                         )
                     );
@@ -431,7 +427,7 @@ contract Strategy is BaseStrategy {
         require(_remKashiPair == address(kashiPairInfo.kashiPair));
         liquidateKashiPair(
             _remIndex,
-            wantToBentoShares(estimatedTotalAssets(), true)
+            wantToBentoShares(estimatedTotalAssets())
         );
         if (kashiPairInfo.pid != 0) {
             IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
@@ -472,15 +468,13 @@ contract Strategy is BaseStrategy {
                 bentoSharesToWant(
                     kashiFractionToBentoShares(
                         kashiPairs[i].kashiPair,
-                        kashiFractionTotal(i),
-                        true
-                    ),
-                    true
+                        kashiFractionTotal(i)
+                    )
                 );
             uint256 targetAssets = (_ratios[i] * totalAssets) / MAX_BPS;
             if (targetAssets < pairTotalAssets) {
                 uint256 toLiquidate = pairTotalAssets.sub(targetAssets);
-                liquidateKashiPair(i, wantToBentoShares(toLiquidate, true));
+                liquidateKashiPair(i, wantToBentoShares(toLiquidate));
             } else if (targetAssets > pairTotalAssets) {
                 kashiPairsIncreasedAllocation[i] = targetAssets.sub(
                     pairTotalAssets
@@ -493,7 +487,7 @@ contract Strategy is BaseStrategy {
 
             uint256 sharesInBento = sharesInBento();
             uint256 sharesToAdd =
-                wantToBentoShares(kashiPairsIncreasedAllocation[i], true);
+                wantToBentoShares(kashiPairsIncreasedAllocation[i]);
 
             if (sharesToAdd > sharesInBento) {
                 sharesToAdd = sharesInBento;
@@ -574,8 +568,7 @@ contract Strategy is BaseStrategy {
         uint256 fractionsToFree =
             bentoSharesToKashiFraction(
                 kashiPairs[kashiPairIndex].kashiPair,
-                sharesToFree,
-                true
+                sharesToFree
             );
 
         // Remove from masterChef if there is a non-zero pid
@@ -773,9 +766,13 @@ contract Strategy is BaseStrategy {
         uint256 totalAssetShares = kashiPair.totalAsset().elastic;
         uint256 totalBorrowAmount = kashiPair.totalBorrow().elastic;
         uint256 fullAssetAmount =
-            bentoSharesToWant(totalAssetShares.add(sharesToDeposit), false).add(
-                totalBorrowAmount
-            );
+            bentoBox
+                .toAmount(
+                BIERC20(address(this)),
+                totalAssetShares.add(sharesToDeposit),
+                false
+            )
+                .add(totalBorrowAmount);
 
         return
             uint256(totalBorrowAmount).mul(KASHI_UTILIZATION_PRECISION).div(
@@ -783,33 +780,32 @@ contract Strategy is BaseStrategy {
             );
     }
 
-    function wantToBentoShares(uint256 wantAmount, bool roundUp)
+    function wantToBentoShares(uint256 wantAmount)
         internal
         view
         returns (uint256)
     {
-        return bentoBox.toShare(BIERC20(address(this)), wantAmount, roundUp);
+        return bentoBox.toShare(BIERC20(address(this)), wantAmount, true);
     }
 
-    function bentoSharesToWant(uint256 bentoShares, bool roundUp)
+    function bentoSharesToWant(uint256 bentoShares)
         internal
         view
         returns (uint256)
     {
-        return bentoBox.toAmount(BIERC20(address(this)), bentoShares, roundUp);
+        return bentoBox.toAmount(BIERC20(address(this)), bentoShares, true);
     }
 
     function bentoSharesToKashiFraction(
         IKashiPair kashiPair,
-        uint256 bentoShares,
-        bool roundUp
+        uint256 bentoShares
     ) internal view returns (uint256 _kashiFraction) {
         // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L320-L323
         Rebase memory totalAsset = kashiPair.totalAsset();
         Rebase memory totalBorrow = kashiPair.totalBorrow();
         uint256 allShare =
             uint256(totalAsset.elastic).add(
-                wantToBentoShares(totalBorrow.elastic, roundUp)
+                wantToBentoShares(totalBorrow.elastic)
             );
         _kashiFraction = allShare == 0
             ? bentoShares
@@ -818,15 +814,14 @@ contract Strategy is BaseStrategy {
 
     function kashiFractionToBentoShares(
         IKashiPair kashiPair,
-        uint256 _kashiFraction,
-        bool roundUp
+        uint256 _kashiFraction
     ) internal view returns (uint256 bentoShares) {
         // Adapted from https://github.com/sushiswap/kashi-lending/blob/b6e3521d8628a835935c94a9039cfd192044d66b/contracts/KashiPair.sol#L351-L353
         Rebase memory totalAsset = kashiPair.totalAsset();
         Rebase memory totalBorrow = kashiPair.totalBorrow();
         uint256 allShare =
             uint256(totalAsset.elastic).add(
-                wantToBentoShares(totalBorrow.elastic, roundUp)
+                wantToBentoShares(totalBorrow.elastic)
             );
         bentoShares = _kashiFraction.mul(allShare).div(totalAsset.base);
     }
