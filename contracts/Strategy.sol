@@ -154,6 +154,8 @@ contract Strategy is BaseStrategy {
 
         bentoBox = IBentoBox(_bentoBox);
 
+        healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
+
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
             kashiPairs.push(
                 KashiPairInfo(IKashiPair(_kashiPairs[i]), _pids[i])
@@ -306,23 +308,24 @@ contract Strategy is BaseStrategy {
         returns (uint256 _liquidatedAmount, uint256 _loss)
     {
         uint256 wantBalance = balanceOfWant();
-        if (_amountNeeded > wantBalance) {
-            uint256 amountToFree = _amountNeeded.sub(wantBalance);
 
-            uint256 deposited = estimatedTotalAssets().sub(wantBalance);
+        if (_amountNeeded <= wantBalance) {
+            return (_amountNeeded, 0);
+        }
 
-            if (deposited < amountToFree) {
-                amountToFree = deposited;
-            }
-            if (amountToFree > 0) {
-                uint256 sharesNeeded = wantToBentoShares(amountToFree);
-                uint256 bentoShares = sharesInBento();
+        uint256 amountToFree = _amountNeeded.sub(wantBalance);
+        uint256 deposited = estimatedTotalAssets().sub(wantBalance);
 
-                uint256 sharesToFreeFromKashi =
-                    bentoShares <= sharesNeeded
-                        ? sharesNeeded.sub(bentoShares)
-                        : 0;
+        if (amountToFree > deposited) {
+            amountToFree = deposited;
+        }
 
+        if (amountToFree > 0) {
+            uint256 sharesNeeded = wantToBentoShares(amountToFree);
+            uint256 bentoShares = sharesInBento();
+
+            if (sharesNeeded > bentoShares) {
+                uint256 sharesToFreeFromKashi = sharesNeeded.sub(bentoShares);
                 uint256 sharesFreedFromKashi = 0;
 
                 // Find the lowest apr pair with at least the lesser of
@@ -364,23 +367,21 @@ contract Strategy is BaseStrategy {
                         )
                     );
                 }
-
-                bentoBox.withdraw(
-                    BIERC20(address(want)),
-                    address(this),
-                    address(this),
-                    0,
-                    sharesInBento()
-                );
             }
 
-            _liquidatedAmount = balanceOfWant();
+            bentoBox.withdraw(
+                BIERC20(address(want)),
+                address(this),
+                address(this),
+                0,
+                sharesInBento()
+            );
+        }
 
-            if (_amountNeeded > _liquidatedAmount) {
-                _loss = _amountNeeded.sub(_liquidatedAmount);
-            }
-        } else {
-            _liquidatedAmount = _amountNeeded;
+        _liquidatedAmount = Math.min(balanceOfWant(), _amountNeeded);
+
+        if (_amountNeeded > _liquidatedAmount) {
+            _loss = _amountNeeded.sub(_liquidatedAmount);
         }
     }
 
@@ -832,6 +833,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256)
     {
+        if (wantAmount == 0) return 0;
         return bentoBox.toShare(BIERC20(address(this)), wantAmount, true);
     }
 
@@ -840,6 +842,7 @@ contract Strategy is BaseStrategy {
         view
         returns (uint256)
     {
+        if (bentoShares == 0) return 0;
         return bentoBox.toAmount(BIERC20(address(this)), bentoShares, true);
     }
 
