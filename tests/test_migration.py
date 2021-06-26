@@ -85,7 +85,7 @@ def test_remove_kashi_pair(
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
-    strategy.removeKashiPair(kashi_pair_0, {"from": gov})
+    strategy.removeKashiPair(kashi_pair_0, 0, {"from": gov})
     assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 

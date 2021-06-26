@@ -422,25 +422,23 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function removeKashiPair(address _remKashiPair)
+    function removeKashiPair(address _remKashiPair, uint256 _remIndex)
         external
         onlyEmergencyAuthorized
     {
-        for (uint256 i = 0; i < kashiPairs.length; i++) {
-            if (_remKashiPair != address(kashiPairs[i].kashiPair)) continue;
-            liquidateKashiPair(
-                i,
-                wantToBentoShares(estimatedTotalAssets(), true)
-            );
-            if (kashiPairs[i].pid != 0) {
-                IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
-            }
-            kashiPairs[i] = kashiPairs[kashiPairs.length - 1];
-            kashiPairs.pop();
-            return;
-        }
+        KashiPairInfo memory kashiPairInfo = kashiPairs[_remIndex];
 
-        revert("kashiPair not found");
+        require(_remKashiPair == address(kashiPairInfo.kashiPair));
+        liquidateKashiPair(
+            _remIndex,
+            wantToBentoShares(estimatedTotalAssets(), true)
+        );
+        if (kashiPairInfo.pid != 0) {
+            IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
+        }
+        kashiPairs[_remIndex] = kashiPairs[kashiPairs.length - 1];
+        kashiPairs.pop();
+        return;
     }
 
     function adjustKashiPairRatios(uint256[] calldata _ratios)
