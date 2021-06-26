@@ -42,24 +42,23 @@ contract Strategy is BaseStrategy {
     uint256 internal constant MAX_PAIRS = 5;
     uint256 internal constant MAX_BPS = 1e4;
 
-    address internal constant DEFAULT_SUSHI_ROUTER =
-        0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
-
     // Kashi constants (apply to MediumRiskPairs)
-    uint256 constant KASHI_MINIMUM_TARGET_UTILIZATION = 7e17; // 70%
-    uint256 constant KASHI_MAXIMUM_TARGET_UTILIZATION = 8e17; // 80%
-    uint256 constant KASHI_UTILIZATION_PRECISION = 1e18;
+    uint256 internal constant KASHI_MINIMUM_TARGET_UTILIZATION = 7e17; // 70%
+    uint256 internal constant KASHI_MAXIMUM_TARGET_UTILIZATION = 8e17; // 80%
+    uint256 internal constant KASHI_UTILIZATION_PRECISION = 1e18;
 
     IERC20 internal constant weth =
         IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IERC20 internal constant sushi =
         IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
-    IMasterChef internal constant masterChef =
+
+    IMasterChef public constant masterChef =
         IMasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
+    IUniswapV2Router02 public constant sushiRouter =
+        IUniswapV2Router02(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F);
 
     IBentoBox public bentoBox;
     KashiPairInfo[] public kashiPairs;
-    IUniswapV2Router02 public sushiRouter;
 
     uint256 public dustThreshold = 2;
 
@@ -149,8 +148,6 @@ contract Strategy is BaseStrategy {
         strategyName = bytes(_strategyName).length == 0
             ? "StrategyKashiMultiPairLender"
             : _strategyName;
-
-        sushiRouter = IUniswapV2Router02(DEFAULT_SUSHI_ROUTER);
 
         bentoBox = IBentoBox(_bentoBox);
 
@@ -667,10 +664,6 @@ contract Strategy is BaseStrategy {
 
     function setPath(address[] calldata _path) external onlyGovernance {
         path = _path;
-    }
-
-    function setRouter(address _router) external onlyGovernance {
-        sushiRouter = IUniswapV2Router02(_router);
     }
 
     function balanceOfWant() internal view returns (uint256) {
