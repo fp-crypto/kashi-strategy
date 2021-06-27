@@ -91,27 +91,32 @@ def weth():
 
 @pytest.fixture(scope="session")
 def kashi_pair_0():
-    yield Contract("0xB7b45754167d65347C93F3B28797887b4b6cd2F3")  # pid 191
+    yield Contract("0xB7b45754167d65347C93F3B28797887b4b6cd2F3")  # eth/usdc pid 191
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_1():
-    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")  # pid 247
+    yield Contract("0x6EAFe077df3AD19Ade1CE1abDf8bdf2133704f89")  # xsushi/usdc pid 247
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_2():
-    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")  # pid 198
+    yield Contract("0x4f68e70e3a5308d759961643AfcadfC6f74B30f4")  # link/usdc pid 198
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_3():
-    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")  # pid 225
+    yield Contract("0x668edab8A38A962D30602d6Fa7CA489484eE3224")  # wbtc/usdc pid 195
 
 
 @pytest.fixture(scope="session")
 def kashi_pair_4():
-    yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")  # pid 222
+    yield Contract("0xa898974410F7e7689bb626B41BC2292c6A0f5694")  # badger/usdc pid 225
+
+
+@pytest.fixture(scope="session")
+def kashi_pair_5():
+    yield Contract("0x65089e337109CA4caFF78b97d40453D37F9d23f8")  # yfi/usdc pid 222
 
 
 @pytest.fixture(scope="session")
@@ -131,11 +136,16 @@ def pid_2():
 
 @pytest.fixture(scope="session")
 def pid_3():
-    yield 225
+    yield 195
 
 
 @pytest.fixture(scope="session")
 def pid_4():
+    yield 225
+
+
+@pytest.fixture(scope="session")
+def pid_5():
     yield 222
 
 
