@@ -335,6 +335,21 @@ def test_sweep(gov, vault, strategy, token, user, amount, weth, weth_amout):
     assert weth.balanceOf(gov) == weth_amout + before_balance
 
 
+def test_new_strategy_no_pairs(
+    chain,
+    token,
+    vault,
+    strategy,
+    Strategy,
+    strategist,
+    gov,
+    bento_box,
+):
+    name = "NewStrat"
+    new_strategy = strategist.deploy(Strategy, vault, bento_box, [], [], name)
+    assert new_strategy.estimatedTotalAssets() == 0
+
+
 def kashi_pair_in_want(kashi_pair, account):
     kashi_fraction = kashi_pair.balanceOf(account)
     bento_box = Contract(kashi_pair.bentoBox())
