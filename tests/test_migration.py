@@ -25,6 +25,12 @@ def test_migration(
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
+    strategy.adjustKashiPairRatios([4000, 1500, 2500, 2000], {"from": strategist})
+
+    before_assets = [
+        strategy.kashiPairEstimatedAssets(i) for i in range(len(kashi_pairs))
+    ]
+
     # migrate to a new strategy
     name = "NewStrat"
     new_strategy = strategist.deploy(
@@ -36,6 +42,9 @@ def test_migration(
         == amount
     )
     assert new_strategy.name() == name
+
+    for (i, before_asset) in enumerate(before_assets):
+        assert new_strategy.kashiPairEstimatedAssets(i) == before_asset
 
 
 def test_new_kashi_pair(

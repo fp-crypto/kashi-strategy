@@ -387,9 +387,7 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _liquidatedAmount)
     {
-        (_liquidatedAmount, ) = liquidatePosition(
-            estimatedTotalAssets().sub(balanceOfWant())
-        );
+        (_liquidatedAmount, ) = liquidatePosition(estimatedTotalAssets());
     }
 
     // new strategy **must** have the same kashiPairs attached
