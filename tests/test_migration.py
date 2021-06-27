@@ -107,6 +107,36 @@ def test_remove_kashi_pair(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
 
+def test_remove_all_kashi_pairs(
+    chain,
+    token,
+    vault,
+    strategy,
+    amount,
+    gov,
+    user,
+    kashi_pairs,
+    RELATIVE_APPROX,
+):
+    # Deposit to the vault and harvest
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
+    strategy.harvest()
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    # based on the removal logic, the indexes will be determinstic and it's easier to hardcode
+    for kashi_pair, i in zip(kashi_pairs, [0, 1, 1, 0]):
+        strategy.removeKashiPair(kashi_pair, i, {"from": gov})
+        assert (
+            pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX)
+            == amount
+        )
+
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+
 def test_invalid_new_kashi_pair(
     chain, token, vault, strategy, amount, gov, user, RELATIVE_APPROX
 ):
