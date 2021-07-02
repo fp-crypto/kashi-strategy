@@ -348,7 +348,9 @@ contract Strategy is BaseStrategy {
                 for (
                     uint256 i = 0;
                     i < kashiPairs.length &&
-                        sharesToFreeFromKashi > sharesFreedFromKashi;
+                        sharesToFreeFromKashi > sharesFreedFromKashi &&
+                        sharesToFreeFromKashi.sub(sharesFreedFromKashi) >
+                        dustThreshold;
                     i++
                 ) {
                     KashiPairInfo memory kashiPairInfo = kashiPairs[i];
@@ -557,10 +559,7 @@ contract Strategy is BaseStrategy {
         if (pid == 0) return;
 
         uint256 fractionsToStake = kashiFractionInPair(kashiPair);
-
-        if (fractionsToStake > dustThreshold) {
-            masterChef.deposit(pid, fractionsToStake);
-        }
+        masterChef.deposit(pid, fractionsToStake);
     }
 
     function depositInBento(uint256 wantToDeposit)
