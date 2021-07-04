@@ -236,6 +236,12 @@ contract Strategy is BaseStrategy {
     {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             KashiPairInfo memory kashiPairInfo = kashiPairs[i];
+            if (
+                kashiFractionTotal(
+                    kashiPairInfo.kashiPair,
+                    kashiPairInfo.pid
+                ) <= dustThreshold
+            ) continue; // skip if there's only dust
             accrueInterest(kashiPairInfo.kashiPair);
             depositKashiInMasterChef(
                 kashiPairInfo.kashiPair,
