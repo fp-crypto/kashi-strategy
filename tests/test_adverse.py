@@ -232,7 +232,7 @@ def test_multiple_users_and_part_borrowed(
 
     # Harvest 1: Send funds through the strategy
     chain.sleep(1)
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     strategy.adjustKashiPairRatios([10000, 0, 0, 0], {"from": strategist})
@@ -249,7 +249,7 @@ def test_multiple_users_and_part_borrowed(
     # Harvest 2: Realize profit
     chain.sleep(1)
     before_pps = vault.pricePerShare()
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount + amount_2
     assert vault.pricePerShare() >= before_pps
@@ -270,7 +270,7 @@ def test_multiple_users_and_part_borrowed(
 
     # Harvest 3: Realize profit
     before_pps = vault.pricePerShare()
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() >= before_pps
@@ -285,7 +285,7 @@ def test_multiple_users_and_part_borrowed(
 
     # Harvest 4: Realize profit
     before_pps = vault.pricePerShare()
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() >= before_pps
