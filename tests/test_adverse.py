@@ -44,8 +44,9 @@ def test_borrow_all_withdraw(
 
     borrow_all(kashi_pair_0, borrower)
 
-    with brownie.reverts():
-        vault.withdraw({"from": user})
+    # The user is only able to make an incomplete withdraw
+    vault.withdraw({"from": user})
+    assert vault.balanceOf(user) > 0
 
     repay(kashi_pair_0, token, borrower)
 
@@ -102,9 +103,9 @@ def test_borrow_all_with_mixed_distribution(
     vault.withdraw(int(vault.balanceOf(user) * 0.5), {"from": user})
     assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
-    # would fail if we try to withdraw other half
-    with brownie.reverts():
-        vault.withdraw({"from": user})
+    # The user is only able to make an incomplete withdraw
+    vault.withdraw({"from": user})
+    assert vault.balanceOf(user) > 0
 
     repay(kashi_pair_0, token, borrower)
 
@@ -267,7 +268,7 @@ def test_multiple_users_and_part_borrowed(
     chain.sleep(360)
     chain.mine(27)
 
-    # Harvest 2: Realize profit
+    # Harvest 3: Realize profit
     before_pps = vault.pricePerShare()
     strategy.harvest()
     chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
@@ -281,7 +282,13 @@ def test_multiple_users_and_part_borrowed(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
-    assert before_pps <= vault.pricePerShare()
+
+    # Harvest 4: Realize profit
+    before_pps = vault.pricePerShare()
+    strategy.harvest()
+    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    chain.mine(1)
+    assert vault.pricePerShare() >= before_pps
 
 
 def borrow_all(kashi_pair_0, borrower):

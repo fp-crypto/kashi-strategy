@@ -272,7 +272,6 @@ contract Strategy is BaseStrategy {
             if (newLoose < amountToFree) {
                 if (newLoose <= _debtPayment) {
                     _profit = 0;
-                    _loss += _debtPayment.sub(newLoose);
                     _debtPayment = newLoose;
                 } else {
                     _profit = newLoose.sub(_debtPayment);
@@ -384,10 +383,6 @@ contract Strategy is BaseStrategy {
         }
 
         _liquidatedAmount = Math.min(balanceOfWant(), _amountNeeded);
-
-        if (_amountNeeded > _liquidatedAmount) {
-            _loss = _amountNeeded.sub(_liquidatedAmount);
-        }
     }
 
     function liquidateAllPositions()
