@@ -18,6 +18,7 @@ def test_clone(
     pids,
     user,
     amount,
+    reserve,
 ):
     # Shouldn't be able to call initialize again
     with brownie.reverts():
@@ -62,25 +63,36 @@ def test_clone(
         )
 
     vault.revokeStrategy(strategy, {"from": gov})
+    vault.removeStrategyFromQueue(strategy, {"from": gov})
     vault.addStrategy(new_strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
     user_start_balance = token.balanceOf(user)
     before_pps = vault.pricePerShare()
-    token.approve(vault.address, amount, {"from": user})
+    token.approve(vault.address, 2**256-1, {"from": user})
     vault.deposit({"from": user})
 
-    new_strategy.harvest({"from": gov})
-
-    chain.sleep(3600)
-    chain.mine(270)
+    token.transfer(new_strategy, 1_000 * 10 ** token.decimals(), {"from": reserve})
 
     # Get profits and withdraw
+    print(before_pps)
+    before_pps = vault.pricePerShare()
     new_strategy.harvest({"from": gov})
-    chain.sleep(3600 * 10)
+    chain.sleep(3600 * 6)
     chain.mine(1)
-
+    #assert vault.pricePerShare() > before_pps
+    
+    before_pps = vault.pricePerShare()
+    print(vault.pricePerShare())
     vault.withdraw({"from": user})
-    user_end_balance = token.balanceOf(user)
 
-    assert vault.pricePerShare() > before_pps
-    assert user_end_balance > user_start_balance
+    for i in range(200):
+        print(f"pps: {vault.pricePerShare()/1e6:_}")
+        print(f"bal: {token.balanceOf(user)/1e6:_}")
+        vault.deposit({"from": user})
+        print(f"pps: {vault.pricePerShare()/1e6:_}")
+        vault.withdraw({"from": user})
+
+    print(f"pps: {vault.pricePerShare()/1e6:_}")
+
+    #assert vault.pricePerShare() > before_pps
+    #assert user_end_balance > user_start_balance

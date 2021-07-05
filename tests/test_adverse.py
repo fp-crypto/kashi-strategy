@@ -55,6 +55,7 @@ def test_borrow_all_withdraw(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
+    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
 
 def test_borrow_all_with_mixed_distribution(
@@ -282,13 +283,7 @@ def test_multiple_users_and_part_borrowed(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
-
-    # Harvest 4: Realize profit
-    before_pps = vault.pricePerShare()
-    strategy.harvest({"from": strategist})
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
-    chain.mine(1)
-    assert vault.pricePerShare() >= before_pps
+    assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
 
 def borrow_all(kashi_pair_0, borrower):
