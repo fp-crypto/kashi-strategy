@@ -151,7 +151,7 @@ contract Strategy is BaseStrategy {
 
         bentoBox = IBentoBox(_bentoBox);
 
-        healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
+        //healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
 
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
             kashiPairs.push(
@@ -414,9 +414,8 @@ contract Strategy is BaseStrategy {
     }
 
     function addKashiPair(address _newKashiPair, uint256 _newPid)
-        external
-        onlyGovernance
-    {
+        external {
+        _onlyGovernance();
         // cannot exceed max pair length
         require(kashiPairs.length < MAX_PAIRS);
         // must use the correct bentobox
@@ -448,9 +447,8 @@ contract Strategy is BaseStrategy {
     }
 
     function removeKashiPair(address _remKashiPair, uint256 _remIndex)
-        external
-        onlyEmergencyAuthorized
-    {
+        external {
+        _onlyEmergencyAuthorized();
         KashiPairInfo memory kashiPairInfo = kashiPairs[_remIndex];
 
         require(_remKashiPair == address(kashiPairInfo.kashiPair));
@@ -468,9 +466,8 @@ contract Strategy is BaseStrategy {
     }
 
     function adjustKashiPairRatios(uint256[] calldata _ratios)
-        external
-        onlyAuthorized
-    {
+        external {
+        _onlyAuthorized();
         // length of ratios must match number of pairs
         require(_ratios.length == kashiPairs.length);
 
@@ -655,13 +652,13 @@ contract Strategy is BaseStrategy {
     }
 
     function setDustThreshold(uint256 _newDustThreshold)
-        external
-        onlyAuthorized
-    {
+        external {
+        _onlyAuthorized();
         dustThreshold = _newDustThreshold;
     }
 
-    function setPath(address[] calldata _path) external onlyGovernance {
+    function setPath(address[] calldata _path) external {
+        _onlyGovernance();
         path = _path;
     }
 
