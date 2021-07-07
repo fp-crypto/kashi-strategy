@@ -151,7 +151,7 @@ contract Strategy is BaseStrategy {
 
         bentoBox = IBentoBox(_bentoBox);
 
-        healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
+        healthCheck = address(0); //address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
 
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
             kashiPairs.push(
@@ -266,7 +266,7 @@ contract Strategy is BaseStrategy {
         uint256 amountToFree = _debtPayment.add(_profit);
 
         if (amountToFree > 0 && wantBal < amountToFree) {
-            (uint256 newLoose, ) = liquidatePosition(amountToFree.sub(wantBal));
+            (uint256 newLoose, ) = liquidatePosition(amountToFree);
 
             // if we didnt free enough money, prioritize paying down debt before taking profit
             if (newLoose < amountToFree) {
