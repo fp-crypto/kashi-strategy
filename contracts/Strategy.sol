@@ -151,7 +151,7 @@ contract Strategy is BaseStrategy {
 
         bentoBox = IBentoBox(_bentoBox);
 
-        healthCheck = address(0); //address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
+        healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
 
         for (uint256 i = 0; i < _kashiPairs.length; i++) {
             kashiPairs.push(
