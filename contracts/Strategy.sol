@@ -446,10 +446,11 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function removeKashiPair(address _remKashiPair, uint256 _remIndex)
-        external
-        onlyEmergencyAuthorized
-    {
+    function removeKashiPair(
+        address _remKashiPair,
+        uint256 _remIndex,
+        bool _force
+    ) external onlyEmergencyAuthorized {
         KashiPairInfo memory kashiPairInfo = kashiPairs[_remIndex];
 
         require(_remKashiPair == address(kashiPairInfo.kashiPair));
@@ -458,12 +459,21 @@ contract Strategy is BaseStrategy {
             kashiPairInfo.pid,
             wantToBentoShares(estimatedTotalAssets())
         );
+
+        if (!_force) {
+            require(
+                kashiFractionTotal(
+                    kashiPairInfo.kashiPair,
+                    kashiPairInfo.pid
+                ) <= dustThreshold
+            );
+        }
+
         if (kashiPairInfo.pid != 0) {
             IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
         }
         kashiPairs[_remIndex] = kashiPairs[kashiPairs.length - 1];
         kashiPairs.pop();
-        return;
     }
 
     function adjustKashiPairRatios(uint256[] calldata _ratios)
