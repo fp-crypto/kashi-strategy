@@ -62,6 +62,7 @@ def test_clone(
         )
 
     vault.revokeStrategy(strategy, {"from": gov})
+    vault.removeStrategyFromQueue(strategy, {"from": gov})
     vault.addStrategy(new_strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
     user_start_balance = token.balanceOf(user)
