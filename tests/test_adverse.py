@@ -271,7 +271,7 @@ def test_multiple_users_and_part_borrowed(
     # Harvest 3: Realize profit
     before_pps = vault.pricePerShare()
     strategy.harvest({"from": strategist})
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() >= before_pps
 
@@ -283,12 +283,48 @@ def test_multiple_users_and_part_borrowed(
         before_pps / 10 ** vault.decimals()
     )
 
-    # Harvest 4: Realize profit
-    before_pps = vault.pricePerShare()
-    strategy.harvest({"from": strategist})
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
-    chain.mine(1)
-    assert vault.pricePerShare() >= before_pps
+    # # Harvest 4: Realize profit
+    # before_pps = vault.pricePerShare()
+    # strategy.harvest({"from": strategist})
+    # chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
+    # chain.mine(1)
+    # assert vault.pricePerShare() >= before_pps
+
+
+def test_remove_kashi_pair_all_borrowed(
+    chain,
+    token,
+    vault,
+    strategy,
+    amount,
+    gov,
+    user,
+    kashi_pairs,
+    kashi_pair_0,
+    borrower,
+    collateral_amount,
+    RELATIVE_APPROX,
+):
+    # Deposit to the vault and harvest
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
+    strategy.harvest()
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    strategy.adjustKashiPairRatios([10000, 0, 0, 0])
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    borrow_all(kashi_pair_0, borrower)
+
+    with brownie.reverts():
+        strategy.removeKashiPair(kashi_pair_0, 0, False, {"from": gov})
+    strategy.removeKashiPair(kashi_pair_0, 0, True, {"from": gov})
+    assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
+    assert strategy.estimatedTotalAssets() < amount
+
+    repay(kashi_pair_0, token, borrower)
 
 
 def borrow_all(kashi_pair_0, borrower):

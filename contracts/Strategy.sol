@@ -461,10 +461,16 @@ contract Strategy is BaseStrategy {
         );
 
         if (!_force) {
+            // must have liquidated all but dust
             require(
-                kashiFractionTotal(
-                    kashiPairInfo.kashiPair,
-                    kashiPairInfo.pid
+                bentoSharesToWant(
+                    kashiFractionToBentoShares(
+                        kashiPairInfo.kashiPair,
+                        kashiFractionTotal(
+                            kashiPairInfo.kashiPair,
+                            kashiPairInfo.pid
+                        )
+                    )
                 ) <= dustThreshold
             );
         }

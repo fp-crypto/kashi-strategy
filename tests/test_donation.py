@@ -60,7 +60,7 @@ def test_sushi_donation(
     # donate sushi tokens
     donation_amount = 1_000 * 10 ** sushi.decimals()
     sushi.transfer(strategy, donation_amount, {"from": sushi_whale})
-    assert sushdi.balanceOf(strategy) == donation_amount
+    assert sushi.balanceOf(strategy) == donation_amount
 
     # harvest
     before_pps = vault.pricePerShare()

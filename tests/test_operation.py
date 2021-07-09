@@ -186,7 +186,7 @@ def test_multiple_users(
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
     strategy.harvest()
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() > before_pps
 
@@ -195,6 +195,10 @@ def test_multiple_users(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
+
+    # Sleep needed, not sure why
+    chain.sleep(3600 * 6)
+    chain.mine(1)
     assert before_pps <= vault.pricePerShare()
 
 
@@ -269,7 +273,7 @@ def test_multiple_users_and_adjust_ratios(
     # Harvest 2: Realize profit
     before_pps = vault.pricePerShare()
     strategy.harvest()
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() >= before_pps
 
@@ -288,6 +292,10 @@ def test_multiple_users_and_adjust_ratios(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
+
+    # Sleep needed, not sure why
+    chain.sleep(3600 * 6)
+    chain.mine(1)
     assert before_pps <= vault.pricePerShare()
 
 

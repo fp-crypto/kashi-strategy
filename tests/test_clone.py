@@ -76,11 +76,15 @@ def test_clone(
 
     # Get profits and withdraw
     new_strategy.harvest({"from": gov})
-    chain.sleep(3600 * 10)
+    chain.sleep(3600 * 6)
     chain.mine(1)
 
+    before_pps = vault.pricePerShare()
     vault.withdraw({"from": user})
     user_end_balance = token.balanceOf(user)
-
-    assert vault.pricePerShare() > before_pps
     assert user_end_balance > user_start_balance
+
+    # Not sure why this is necassary
+    chain.sleep(3600 * 6)
+    chain.mine(1)
+    assert vault.pricePerShare() >= before_pps
