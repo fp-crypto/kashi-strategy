@@ -454,23 +454,19 @@ contract Strategy is BaseStrategy {
         KashiPairInfo memory kashiPairInfo = kashiPairs[_remIndex];
 
         require(_remKashiPair == address(kashiPairInfo.kashiPair));
+
         liquidateKashiPair(
             kashiPairInfo.kashiPair,
             kashiPairInfo.pid,
-            wantToBentoShares(estimatedTotalAssets())
+            type(uint256).max // liquidateAll
         );
 
         if (!_force) {
             // must have liquidated all but dust
             require(
-                bentoSharesToWant(
-                    kashiFractionToBentoShares(
-                        kashiPairInfo.kashiPair,
-                        kashiFractionTotal(
-                            kashiPairInfo.kashiPair,
-                            kashiPairInfo.pid
-                        )
-                    )
+                kashiFractionTotal(
+                    kashiPairInfo.kashiPair,
+                    kashiPairInfo.pid
                 ) <= dustThreshold
             );
         }
