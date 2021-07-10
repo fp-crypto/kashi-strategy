@@ -11,6 +11,7 @@ def test_want_donation(
     vault.deposit(amount, {"from": user})
     assert token.balanceOf(vault.address) == amount
 
+    chain.sleep(1)
     strategy.harvest()
 
     # earn some yield
@@ -41,6 +42,7 @@ def test_sushi_donation(
     chain,
     accounts,
     user,
+    gov,
     token,
     amount,
     sushi,
@@ -56,11 +58,15 @@ def test_sushi_donation(
 
     # Harvest 1: Send funds through the strategy
     chain.sleep(1)
+    strategy.harvest()
 
     # donate sushi tokens
     donation_amount = 1_000 * 10 ** sushi.decimals()
     sushi.transfer(strategy, donation_amount, {"from": sushi_whale})
     assert sushi.balanceOf(strategy) == donation_amount
+
+    # Don't do healthCheck so we can have >300bps profit
+    strategy.setDoHealthCheck(False, {"from": gov})
 
     # harvest
     before_pps = vault.pricePerShare()

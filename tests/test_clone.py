@@ -70,6 +70,7 @@ def test_clone(
     token.approve(vault.address, amount, {"from": user})
     vault.deposit({"from": user})
 
+    chain.sleep(1)
     new_strategy.harvest({"from": gov})
 
     chain.sleep(3600)
