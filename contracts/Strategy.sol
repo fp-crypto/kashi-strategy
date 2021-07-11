@@ -240,8 +240,8 @@ contract Strategy is BaseStrategy {
                 kashiFractionTotal(
                     kashiPairInfo.kashiPair,
                     kashiPairInfo.pid
-                ) <= dustThreshold
-            ) continue; // skip if there's only dust
+                ) == 0
+            ) continue; // skip the pair has no assets
             accrueInterest(kashiPairInfo.kashiPair);
             depositKashiInMasterChef(
                 kashiPairInfo.kashiPair,
