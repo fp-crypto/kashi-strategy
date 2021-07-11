@@ -353,9 +353,8 @@ contract Strategy is BaseStrategy {
                 for (
                     uint256 i = 0;
                     i < kashiPairs.length &&
-                        sharesToFreeFromKashi > sharesFreedFromKashi &&
-                        sharesToFreeFromKashi.sub(sharesFreedFromKashi) >
-                        dustThreshold;
+                        sharesFreedFromKashi.add(dustThreshold) <
+                        sharesToFreeFromKashi;
                     i++
                 ) {
                     KashiPairInfo memory kashiPairInfo = kashiPairs[i];
