@@ -318,7 +318,7 @@ contract Strategy is BaseStrategy {
         uint256 amountToFree = _amountNeeded.sub(wantBalance);
         uint256 deposited = estimatedTotalAssets().sub(wantBalance);
 
-        if (amountToFree > deposited) {
+        if (amountToFree.add(dustThreshold) > deposited) {
             amountToFree = deposited;
         }
 
@@ -620,7 +620,7 @@ contract Strategy is BaseStrategy {
         if (pid != 0) {
             uint256 fractionInMc = kashiFactionInMasterChef(pid);
             uint256 fractionsToFreeFromMc = fractionsToFree;
-            if (fractionsToFreeFromMc > fractionInMc) {
+            if (fractionsToFreeFromMc.add(dustThreshold) > fractionInMc) {
                 fractionsToFreeFromMc = fractionInMc;
             }
             masterChef.withdraw(pid, fractionsToFreeFromMc);
@@ -628,7 +628,7 @@ contract Strategy is BaseStrategy {
 
         uint256 fractionBalance = kashiFractionInPair(kashiPair);
 
-        if (fractionsToFree > fractionBalance) {
+        if (fractionsToFree.add(dustThreshold) > fractionBalance) {
             fractionsToFree = fractionBalance;
         }
 
