@@ -70,6 +70,7 @@ def test_sushi_donation(
 
     # harvest
     before_pps = vault.pricePerShare()
+    chain.sleep(1)
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
     chain.sleep(3600 * 6)
