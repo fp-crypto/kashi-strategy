@@ -382,6 +382,15 @@ contract Strategy is BaseStrategy {
         }
 
         _liquidatedAmount = Math.min(balanceOfWant(), _amountNeeded);
+
+        // To prevent the vault from moving on to the next strategy in the queue
+        // when we return the amountRequested minus dust, take a dust sized loss
+        if (_liquidatedAmount < _amountNeeded) {
+            uint256 diff = _amountNeeded.sub(_liquidatedAmount);
+            if (diff <= dustThreshold) {
+                _loss = diff;
+            }
+        }
     }
 
     function liquidateAllPositions()
