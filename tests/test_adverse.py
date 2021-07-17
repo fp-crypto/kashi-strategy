@@ -44,8 +44,9 @@ def test_borrow_all_withdraw(
 
     borrow_all(kashi_pair_0, borrower)
 
-    with brownie.reverts():
-        vault.withdraw({"from": user})
+    # The user is only able to make an incomplete withdraw
+    vault.withdraw({"from": user})
+    assert vault.balanceOf(user) > 0
 
     repay(kashi_pair_0, token, borrower)
 
@@ -102,9 +103,9 @@ def test_borrow_all_with_mixed_distribution(
     vault.withdraw(int(vault.balanceOf(user) * 0.5), {"from": user})
     assert pytest.approx(before_pps, rel=RELATIVE_APPROX) == vault.pricePerShare()
 
-    # would fail if we try to withdraw other half
-    with brownie.reverts():
-        vault.withdraw({"from": user})
+    # The user is only able to make an incomplete withdraw
+    vault.withdraw({"from": user})
+    assert vault.balanceOf(user) > 0
 
     repay(kashi_pair_0, token, borrower)
 
@@ -231,7 +232,7 @@ def test_multiple_users_and_part_borrowed(
 
     # Harvest 1: Send funds through the strategy
     chain.sleep(1)
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
     strategy.adjustKashiPairRatios([10000, 0, 0, 0], {"from": strategist})
@@ -248,7 +249,7 @@ def test_multiple_users_and_part_borrowed(
     # Harvest 2: Realize profit
     chain.sleep(1)
     before_pps = vault.pricePerShare()
-    strategy.harvest()
+    strategy.harvest({"from": strategist})
     profit = token.balanceOf(vault.address)  # Profits go to vault
     assert strategy.estimatedTotalAssets() + profit > amount + amount_2
     assert vault.pricePerShare() >= before_pps
@@ -267,10 +268,10 @@ def test_multiple_users_and_part_borrowed(
     chain.sleep(360)
     chain.mine(27)
 
-    # Harvest 2: Realize profit
+    # Harvest 3: Realize profit
     before_pps = vault.pricePerShare()
-    strategy.harvest()
-    chain.sleep(3600 * 10)  # 6 hrs needed for profits to unlock
+    strategy.harvest({"from": strategist})
+    chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
     chain.mine(1)
     assert vault.pricePerShare() >= before_pps
 
@@ -281,7 +282,49 @@ def test_multiple_users_and_part_borrowed(
     assert pytest.approx(token.balanceOf(user), rel=RELATIVE_APPROX) == amount * (
         before_pps / 10 ** vault.decimals()
     )
-    assert before_pps <= vault.pricePerShare()
+
+    # # Harvest 4: Realize profit
+    # before_pps = vault.pricePerShare()
+    # strategy.harvest({"from": strategist})
+    # chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
+    # chain.mine(1)
+    # assert vault.pricePerShare() >= before_pps
+
+
+def test_remove_kashi_pair_all_borrowed(
+    chain,
+    token,
+    vault,
+    strategy,
+    amount,
+    gov,
+    user,
+    kashi_pairs,
+    kashi_pair_0,
+    borrower,
+    collateral_amount,
+    RELATIVE_APPROX,
+):
+    # Deposit to the vault and harvest
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
+
+    chain.sleep(1)
+    strategy.harvest()
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    strategy.adjustKashiPairRatios([10000, 0, 0, 0])
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+
+    borrow_all(kashi_pair_0, borrower)
+
+    with brownie.reverts():
+        strategy.removeKashiPair(kashi_pair_0, 0, False, {"from": gov})
+    strategy.removeKashiPair(kashi_pair_0, 0, True, {"from": gov})
+    assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
+    assert strategy.estimatedTotalAssets() < amount
+
+    repay(kashi_pair_0, token, borrower)
 
 
 def borrow_all(kashi_pair_0, borrower):

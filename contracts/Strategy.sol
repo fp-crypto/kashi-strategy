@@ -236,6 +236,12 @@ contract Strategy is BaseStrategy {
     {
         for (uint256 i = 0; i < kashiPairs.length; i++) {
             KashiPairInfo memory kashiPairInfo = kashiPairs[i];
+            if (
+                kashiFractionTotal(
+                    kashiPairInfo.kashiPair,
+                    kashiPairInfo.pid
+                ) == 0
+            ) continue; // skip the pair has no assets
             accrueInterest(kashiPairInfo.kashiPair);
             depositKashiInMasterChef(
                 kashiPairInfo.kashiPair,
@@ -260,13 +266,12 @@ contract Strategy is BaseStrategy {
         uint256 amountToFree = _debtPayment.add(_profit);
 
         if (amountToFree > 0 && wantBal < amountToFree) {
-            (uint256 newLoose, ) = liquidatePosition(amountToFree.sub(wantBal));
+            (uint256 newLoose, ) = liquidatePosition(amountToFree);
 
             // if we didnt free enough money, prioritize paying down debt before taking profit
             if (newLoose < amountToFree) {
                 if (newLoose <= _debtPayment) {
                     _profit = 0;
-                    _loss += _debtPayment.sub(newLoose);
                     _debtPayment = newLoose;
                 } else {
                     _profit = newLoose.sub(_debtPayment);
@@ -313,7 +318,7 @@ contract Strategy is BaseStrategy {
         uint256 amountToFree = _amountNeeded.sub(wantBalance);
         uint256 deposited = estimatedTotalAssets().sub(wantBalance);
 
-        if (amountToFree > deposited) {
+        if (amountToFree.add(dustThreshold) > deposited) {
             amountToFree = deposited;
         }
 
@@ -348,7 +353,8 @@ contract Strategy is BaseStrategy {
                 for (
                     uint256 i = 0;
                     i < kashiPairs.length &&
-                        sharesToFreeFromKashi > sharesFreedFromKashi;
+                        sharesFreedFromKashi.add(dustThreshold) <
+                        sharesToFreeFromKashi;
                     i++
                 ) {
                     KashiPairInfo memory kashiPairInfo = kashiPairs[i];
@@ -377,8 +383,13 @@ contract Strategy is BaseStrategy {
 
         _liquidatedAmount = Math.min(balanceOfWant(), _amountNeeded);
 
-        if (_amountNeeded > _liquidatedAmount) {
-            _loss = _amountNeeded.sub(_liquidatedAmount);
+        // To prevent the vault from moving on to the next strategy in the queue
+        // when we return the amountRequested minus dust, take a dust sized loss
+        if (_liquidatedAmount < _amountNeeded) {
+            uint256 diff = _amountNeeded.sub(_liquidatedAmount);
+            if (diff <= dustThreshold) {
+                _loss = diff;
+            }
         }
     }
 
@@ -443,24 +454,36 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function removeKashiPair(address _remKashiPair, uint256 _remIndex)
-        external
-        onlyEmergencyAuthorized
-    {
+    function removeKashiPair(
+        address _remKashiPair,
+        uint256 _remIndex,
+        bool _force
+    ) external onlyEmergencyAuthorized {
         KashiPairInfo memory kashiPairInfo = kashiPairs[_remIndex];
 
         require(_remKashiPair == address(kashiPairInfo.kashiPair));
+
         liquidateKashiPair(
             kashiPairInfo.kashiPair,
             kashiPairInfo.pid,
-            wantToBentoShares(estimatedTotalAssets())
+            type(uint256).max // liquidateAll
         );
+
+        if (!_force) {
+            // must have liquidated all but dust
+            require(
+                kashiFractionTotal(
+                    kashiPairInfo.kashiPair,
+                    kashiPairInfo.pid
+                ) <= dustThreshold
+            );
+        }
+
         if (kashiPairInfo.pid != 0) {
             IERC20(_remKashiPair).safeApprove(address(masterChef), 0);
         }
         kashiPairs[_remIndex] = kashiPairs[kashiPairs.length - 1];
         kashiPairs.pop();
-        return;
     }
 
     function adjustKashiPairRatios(uint256[] calldata _ratios)
@@ -557,10 +580,7 @@ contract Strategy is BaseStrategy {
         if (pid == 0) return;
 
         uint256 fractionsToStake = kashiFractionInPair(kashiPair);
-
-        if (fractionsToStake > dustThreshold) {
-            masterChef.deposit(pid, fractionsToStake);
-        }
+        masterChef.deposit(pid, fractionsToStake);
     }
 
     function depositInBento(uint256 wantToDeposit)
@@ -608,7 +628,7 @@ contract Strategy is BaseStrategy {
         if (pid != 0) {
             uint256 fractionInMc = kashiFactionInMasterChef(pid);
             uint256 fractionsToFreeFromMc = fractionsToFree;
-            if (fractionsToFreeFromMc > fractionInMc) {
+            if (fractionsToFreeFromMc.add(dustThreshold) > fractionInMc) {
                 fractionsToFreeFromMc = fractionInMc;
             }
             masterChef.withdraw(pid, fractionsToFreeFromMc);
@@ -616,7 +636,7 @@ contract Strategy is BaseStrategy {
 
         uint256 fractionBalance = kashiFractionInPair(kashiPair);
 
-        if (fractionsToFree > fractionBalance) {
+        if (fractionsToFree.add(dustThreshold) > fractionBalance) {
             fractionsToFree = fractionBalance;
         }
 

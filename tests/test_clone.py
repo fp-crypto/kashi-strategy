@@ -62,6 +62,7 @@ def test_clone(
         )
 
     vault.revokeStrategy(strategy, {"from": gov})
+    vault.removeStrategyFromQueue(strategy, {"from": gov})
     vault.addStrategy(new_strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
     user_start_balance = token.balanceOf(user)
@@ -69,6 +70,7 @@ def test_clone(
     token.approve(vault.address, amount, {"from": user})
     vault.deposit({"from": user})
 
+    chain.sleep(1)
     new_strategy.harvest({"from": gov})
 
     chain.sleep(3600)
@@ -76,11 +78,15 @@ def test_clone(
 
     # Get profits and withdraw
     new_strategy.harvest({"from": gov})
-    chain.sleep(3600 * 10)
+    chain.sleep(3600 * 6)
     chain.mine(1)
 
+    before_pps = vault.pricePerShare()
     vault.withdraw({"from": user})
     user_end_balance = token.balanceOf(user)
-
-    assert vault.pricePerShare() > before_pps
     assert user_end_balance > user_start_balance
+
+    # Not sure why this is necassary
+    chain.sleep(3600 * 6)
+    chain.mine(1)
+    assert vault.pricePerShare() >= before_pps

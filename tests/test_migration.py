@@ -98,7 +98,7 @@ def test_remove_kashi_pair(
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
-    strategy.removeKashiPair(kashi_pair_0, 0, {"from": gov})
+    strategy.removeKashiPair(kashi_pair_0, 0, False, {"from": gov})
     assert strategy.kashiPairs(0)[0] != kashi_pair_0.address
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
@@ -128,7 +128,7 @@ def test_remove_all_kashi_pairs(
 
     # based on the removal logic, the indexes will be determinstic and it's easier to hardcode
     for kashi_pair, i in zip(kashi_pairs, [0, 1, 1, 0]):
-        strategy.removeKashiPair(kashi_pair, i, {"from": gov})
+        strategy.removeKashiPair(kashi_pair, i, False, {"from": gov})
         assert (
             pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX)
             == amount
